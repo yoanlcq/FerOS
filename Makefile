@@ -12,7 +12,7 @@ isodir/boot/FerOS.kernel: build/boot.o build/kernel.o build/vga.o build/kio_vga.
 		build/kio_vga.o \
 		build/kio.o \
 		-lgcc
-	#^ Including the kio.o causes major trouble.
+	#^ Including the kio.o causes major trouble. TODO : Perhaps try the volatile keyword.
 
 build/boot.o: src/boot.s
 	i686-elf-as src/boot.s -o build/boot.o
