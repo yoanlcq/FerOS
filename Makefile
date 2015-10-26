@@ -1,10 +1,11 @@
 all: FerOS.iso
+CCFLAGS = -Iinclude -ffreestanding -O0 -nostdlib
 
 FerOS.iso: isodir/boot/FerOS.kernel isodir/boot/grub/grub.cfg
 	grub-mkrescue /usr/lib/grub/i386-pc -o FerOS.iso isodir/
 isodir/boot/FerOS.kernel: build/boot.o build/kernel.o build/vga.o build/kio_vga.o build/kio.o build/utils.o src/linker.ld
-	i686-elf-gcc -Iinclude -T src/linker.ld -o isodir/boot/FerOS.kernel \
-		-ffreestanding -fbuiltin -O0 -nostdlib \
+	i686-elf-gcc -T src/linker.ld -o isodir/boot/FerOS.kernel \
+		$(CCFLAGS) \
 		build/boot.o \
 		build/kernel.o \
 		build/utils.o \
@@ -12,25 +13,19 @@ isodir/boot/FerOS.kernel: build/boot.o build/kernel.o build/vga.o build/kio_vga.
 		build/kio_vga.o \
 		build/kio.o \
 		-lgcc
-	#^ Including the kio.o causes major trouble. TODO : Perhaps try the volatile keyword.
 
 build/boot.o: src/boot.s
 	i686-elf-as src/boot.s -o build/boot.o
 build/kernel.o: src/kernel.c
-	i686-elf-gcc -Iinclude -c src/kernel.c -o build/kernel.o \
-		-ffreestanding -fbuiltin -O0 
+	i686-elf-gcc $(CCFLAGS) -c src/kernel.c -o build/kernel.o 
 build/vga.o: src/vga.c
-	i686-elf-gcc -Iinclude -c src/vga.c -o build/vga.o \
-		-ffreestanding -fbuiltin -O0 
+	i686-elf-gcc $(CCFLAGS) -c src/vga.c -o build/vga.o
 build/kio_vga.o: src/kio_vga.c
-	i686-elf-gcc -Iinclude -c src/kio_vga.c -o build/kio_vga.o \
-		-ffreestanding -fbuiltin -O0 
+	i686-elf-gcc $(CCFLAGS) -c src/kio_vga.c -o build/kio_vga.o
 build/kio.o: src/kio.c
-	i686-elf-gcc -Iinclude -c src/kio.c -o build/kio.o \
-		-ffreestanding -fbuiltin -O0 
+	i686-elf-gcc $(CCFLAGS) -c src/kio.c -o build/kio.o
 build/utils.o: src/utils.c
-	i686-elf-gcc -Iinclude -c src/utils.c -o build/utils.o \
-		-ffreestanding -fbuiltin -O0 
+	i686-elf-gcc $(CCFLAGS) -c src/utils.c -o build/utils.o
 
 
 clean:
