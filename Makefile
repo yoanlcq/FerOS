@@ -1,9 +1,9 @@
 all: FerOS.iso
 
-FerOS.iso: isodir/boot/FerOS.bin isodir/boot/grub/grub.cfg
-	grub-mkrescue -o FerOS.iso isodir/
-isodir/boot/FerOS.bin: build/boot.o build/kernel.o build/vga.o build/kio_vga.o build/kio.o build/utils.o src/linker.ld
-	i686-elf-gcc -Iinclude -T src/linker.ld -o isodir/boot/FerOS.bin \
+FerOS.iso: isodir/boot/FerOS.kernel isodir/boot/grub/grub.cfg
+	grub-mkrescue /usr/lib/grub/i386-pc -o FerOS.iso isodir/
+isodir/boot/FerOS.kernel: build/boot.o build/kernel.o build/vga.o build/kio_vga.o build/kio.o build/utils.o src/linker.ld
+	i686-elf-gcc -Iinclude -T src/linker.ld -o isodir/boot/FerOS.kernel \
 		-ffreestanding -fbuiltin -O0 -nostdlib \
 		build/boot.o \
 		build/kernel.o \
@@ -34,7 +34,7 @@ build/utils.o: src/utils.c
 
 
 clean:
-	rm -f FerOS.iso build/* isodir/boot/FerOS.bin
+	rm -f FerOS.iso build/* isodir/boot/FerOS.kernel
 re: clean all
 mrproper: clean all
 
