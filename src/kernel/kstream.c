@@ -1,12 +1,11 @@
+#include <stdint.h>
 #include <kio.h>
 #include <utils.h>
 
 kio_stream kio_streams[32];
 uint32_t kio_streams_index = 0;
 
-int kio_open(const char *url) {
-    /* replace "vga" by url below and the OS will work.
-     * This is a rodata issue. */
+int kio_open(const char *url, uint32_t flags) {
     if(streqn(url, "vga", 3)) {
         kio_streams[kio_streams_index].protocol = KIO_PROT_VGA;
         kio_streams[kio_streams_index].offset = 0;

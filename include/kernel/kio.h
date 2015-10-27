@@ -4,7 +4,15 @@
 #include <stdint.h>
 #include <kio_vga.h>
 
-#define KIO_PROT_VGA 0
+typedef enum {
+    KIO_PROT_VGA = 0
+} kio_protocols;
+
+typedef enum {
+    KIO_READ  = 1,
+    KIO_WRITE = 2,
+    KIO_READ_WRITE = 3
+} kio_open_flags;
 
 struct kio_stream {
     uint8_t protocol;

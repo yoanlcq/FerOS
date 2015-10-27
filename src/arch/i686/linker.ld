@@ -20,9 +20,9 @@ SECTIONS
 	}
 
 	/* Read-only data. */
-	.rodata BLOCK(4K) : ALIGN(4K)
+	.rdata BLOCK(4K) : ALIGN(4K)
 	{
-		*(.rodata)
+		*(.rdata)
 	}
 
 	/* Read-write data (initialized) */
