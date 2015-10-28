@@ -1,5 +1,5 @@
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef STRING_H
+#define STRING_H
 
 #include <stdint.h>
 
@@ -20,19 +20,4 @@ strlen();
 strstr();
 strtok();
 
-strtou64();
-strtos64();
-strtof64();
-rand();
-srand();
-
-malloc();
-realloc();
-free();
-abort();
-exit();
-bsearch();
-qsort();
-
-
-#endif
+#endif /* STRING_H */

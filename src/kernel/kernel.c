@@ -1,12 +1,11 @@
 #include <stddef.h>
-#include <stdint.h>
-#include <kernel.h>
-#include <node.h>
+#include <kernel/kernel.h>
+#include <kernel/node.h>
 
 void kernel_main(void) {
-    node n = nopen("vga://display", N_WRITE);
-    nputs(n, "Hello, kernel World!");
-    nclose(n);
+    node n = nopen("vga://", N_WRITE); /* Calls nopen_vga(NULL, N_WRITE) */
+    nputs(n, "Hello, kernel World!");  /* Calls nputs_vga(n, "str"); */
+    nclose(n);                         /* Calls nclose_vga(n); */
     /*
     int i;
     for(i=0 ; i<VGA_WIDTH ; ++i) {
