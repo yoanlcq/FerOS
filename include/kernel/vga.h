@@ -28,6 +28,8 @@ typedef enum vga_color vga_color;
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 25
 
+#define vga_entry(c, fg, bg) ((c) | ((fg)<<8) | ((bg)<<12))
+
 struct vga_context {
     uint16_t buf[VGA_HEIGHT][VGA_WIDTH];
 };
@@ -37,7 +39,7 @@ struct vga_contextp {
     uint16_t *buf;
 };
 
-extern struct vga_contextp vga_display;
+//extern struct vga_contextp vga_display;
 
 void vga_init(vga_context *ctx);
 void vga_deinit(vga_context *ctx);

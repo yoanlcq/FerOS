@@ -3,6 +3,6 @@
 #endif
  
 #if !defined(__i386__)
-#error "The kernel can only be compiled with a ix86-elf compiler."
+#error "The kernel can only be compiled with a x86-elf compiler."
 #endif
 
