@@ -1,5 +1,5 @@
 # FerOS
-My toy OS, mostly following the tutorials on [wiki.osdev.org](wiki.osdev.org).  
+My toy OS, mostly following the tutorials on [wiki.osdev.org](http://wiki.osdev.org).  
   
 I'll probably go back to it when I have the time. No expecting to make a feature-complete OS, but it'd be fun to turn it into a game, just like [this project](https://github.com/Overv/MineAssemble). I like the idea that the computer would be dedicated to run that single program, and it'd remind of old consoles. Good times. c:
 
@@ -15,7 +15,7 @@ Boot time...
 ## Requirements
 Development happens on Linux. Haven't given a thought about Windows, OS X and stuff.
 - GNU Make
-- i686-elf-gcc (Follow the Bare Bones tutorial on [osdev.org](osdev.org) to set up the GCC cross-compiler.)
+- i686-elf-gcc ([Follow the Bare Bones tutorial on osdev.org](http://wiki.osdev.org/Bare_Bones) to set up the GCC cross-compiler.)
 - grub-mkrescue (`sudo apt-get install -y m4 xorriso grub-pc-bin`)
 
 And probably some other stuff I left out, because it's been too long since last time.
