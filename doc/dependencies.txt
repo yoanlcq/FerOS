@@ -1,3 +1,0 @@
-sudo apt-get install -y m4 xorriso grub-pc-bin;
-
-Follow the Bare Bones tutorial on osdev.org to set up the GCC cross-compiler.
