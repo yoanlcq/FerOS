@@ -6,11 +6,12 @@ rglob = $(wildcard \
 	$(1)/*/*/*/*/$(2) \
 )
 
-ISO      := FerOS.iso
-KERNEL   := isodir/boot/FerOS.elf
+ISO        := FerOS.iso
+GRUBCFG    := isodir/boot/grub/grub.cfg
+KERNEL     := isodir/boot/FerOS.elf
 KERNEL_SYM := build/FerOS.sym
 KERNEL_DBG := build/FerOS.dbg.elf
-CFLAGS   := $(strip \
+CFLAGS     := $(strip \
 	-std=c11 -Wall -pedantic -Iinclude \
 	-ffreestanding -O0 -nostdlib -g \
 	-masm=intel \
@@ -26,7 +27,14 @@ OFILES   := $(C_OFILES) $(S_OFILES)
 .PHONY: all
 all: $(ISO)
 
-$(ISO): $(KERNEL) $(KERNEL_SYM) isodir/boot/grub/grub.cfg
+
+$(GRUBCFG): 
+	@mkdir -p $(@D)
+	echo "menuentry \"FerOS\" {" > $@
+	echo "    multiboot $(subst isodir,,$(KERNEL))" >> $@
+	echo "}" >> $@
+
+$(ISO): $(KERNEL) $(KERNEL_SYM) $(GRUBCFG)
 	@mkdir -p $(@D)
 	grub-mkrescue /usr/lib/grub/i386-pc -o $@ isodir/
 
@@ -63,4 +71,7 @@ run-release:
 run:
 	qemu-system-i386 -s -cdrom $(ISO)
 dbg:
-	gdb -q -ex "symbol-file $(KERNEL_SYM)" -ex "target remote localhost:1234"
+	gdb -q \
+		-ex "set disassembly-flavor intel" \
+		-ex "symbol-file $(KERNEL_SYM)" \
+		-ex "target remote localhost:1234"
