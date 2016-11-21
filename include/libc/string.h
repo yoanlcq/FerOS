@@ -1,10 +1,11 @@
-#ifndef STRING_H
-#define STRING_H
+#ifndef LIBC_STRING_H
+#define LIBC_STRING_H
 
-#include <stdint.h>
+#include <kern/stdc.h>
 
-int streq(const char *s1, const char *s2);
-int streqn(const char *s1, const char *s2, uint32_t n);
+bool streq(const char *s1, const char *s2);
+bool streqn(const char *s1, const char *s2, size_t n);
+/*
 strcat();
 strncat();
 strchr();
@@ -19,5 +20,5 @@ strfry();
 strlen();
 strstr();
 strtok();
-
-#endif /* STRING_H */
+*/
+#endif /* LIBC_STRING_H */

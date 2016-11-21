@@ -1,6 +1,2 @@
 --- The OS doesn't boot when I add string constants  ---
 Edit 'linker.ld', and replace each instance of 'rodata' by 'rdata'.
-You can do it with your shell, like so :
-    sed -i "s/rodata/rdata/g" linker.ld
-
-

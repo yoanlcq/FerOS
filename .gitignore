@@ -1,4 +1,5 @@
 build/**
+isodir/**/*.kernel
+isodir/**/*.elf
 *.iso
-isodir/boot/FerOS.kernel
 .DS_Store

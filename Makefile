@@ -1,36 +1,66 @@
-all: FerOS.iso
-CCFLAGS = -Wall -Iinclude -ffreestanding -O0 -nostdlib
+rglob = $(wildcard \
+	$(1)/$(2) \
+	$(1)/*/$(2) \
+	$(1)/*/*/$(2) \
+	$(1)/*/*/*/$(2) \
+	$(1)/*/*/*/*/$(2) \
+)
 
-FerOS.iso: build/ isodir/boot/FerOS.kernel isodir/boot/grub/grub.cfg
-	grub-mkrescue /usr/lib/grub/i386-pc -o FerOS.iso isodir/
-build/:
-	mkdir build
-
-isodir/boot/FerOS.kernel: build/boot.o build/kernel.o src/arch/i686/linker.ld
-	i686-elf-gcc -T src/arch/i686/linker.ld -o isodir/boot/FerOS.kernel \
-		$(CCFLAGS) \
-		build/boot.o \
-		build/kernel.o \
-		-lgcc
-
-build/boot.o: src/arch/i686/boot.s
-	i686-elf-as src/arch/i686/boot.s -o build/boot.o
-build/kernel.o: src/kernel/kernel.c
-	i686-elf-gcc $(CCFLAGS) -c src/kernel/kernel.c -o build/kernel.o 
-
-#build/vga.o: src/arch/i686/vga.c
-#	i686-elf-gcc $(CCFLAGS) -c src/vga.c -o build/vga.o
-#build/kio_vga.o: src/arch/i686/kio_vga.c
-#	i686-elf-gcc $(CCFLAGS) -c src/kio_vga.c -o build/kio_vga.o
-#build/kio.o: src/kio.c
-#	i686-elf-gcc $(CCFLAGS) -c src/kio.c -o build/kio.o
-#build/utils.o: src/utils.c
-#	i686-elf-gcc $(CCFLAGS) -c src/utils.c -o build/utils.o
+ISO      := FerOS.iso
+KERNEL   := isodir/boot/FerOS.elf
+KERNEL_SYM := build/FerOS.sym
+KERNEL_DBG := build/FerOS.dbg.elf
+CFLAGS   := $(strip \
+	-std=c11 -Wall -pedantic -Iinclude \
+	-ffreestanding -O0 -nostdlib -g \
+	-masm=intel \
+)
+LDLIBS   := -lgcc
+CFILES   := $(call rglob,src,*.c)
+SFILES   := $(call rglob,src,*.s)
+C_OFILES := $(patsubst src/%.c,build/%.c.o,$(CFILES))
+S_OFILES := $(patsubst src/%.s,build/%.s.o,$(SFILES))
+OFILES   := $(C_OFILES) $(S_OFILES)
 
 
+.PHONY: all
+all: $(ISO)
+
+$(ISO): $(KERNEL) $(KERNEL_SYM) isodir/boot/grub/grub.cfg
+	@mkdir -p $(@D)
+	grub-mkrescue /usr/lib/grub/i386-pc -o $@ isodir/
+
+$(KERNEL): $(KERNEL_DBG) $(KERNEL_SYM)
+	@mkdir -p $(@D)
+	cp $< $@
+	objcopy --strip-debug $@
+$(KERNEL_DBG): src/arch/i686/linker.ld $(OFILES)
+	@mkdir -p $(@D)
+	i686-elf-gcc -T $< -o $@ $(CFLAGS) $(OFILES) $(LDLIBS)
+$(KERNEL_SYM): $(KERNEL_DBG)
+	@mkdir -p $(@D)
+	objcopy --only-keep-debug $< $@
+
+build/%.s.o: src/%.s
+	@mkdir -p $(@D)
+	i686-elf-as $< -o $@
+
+build/%.c.o: src/%.c
+	@mkdir -p $(@D)
+	i686-elf-gcc $(CFLAGS) -c $< -o $@
+
+
+.PHONY: clean re mrproper
 clean:
-	rm -f FerOS.iso build/* isodir/boot/FerOS.kernel
+	rm -rf build
 re: clean all
 mrproper: clean all
 
-.PHONY: clean re mrproper
+
+.PHONY: run run-release debug
+run-release:
+	qemu-system-i386 -cdrom $(ISO)
+run:
+	qemu-system-i386 -s -cdrom $(ISO)
+dbg:
+	gdb -ex "symbol-file $(KERNEL_SYM)" -ex "target remote localhost:1234"
