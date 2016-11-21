@@ -11,6 +11,7 @@ GRUBCFG    := isodir/boot/grub/grub.cfg
 KERNEL     := isodir/boot/FerOS.elf
 KERNEL_SYM := build/FerOS.sym
 KERNEL_DBG := build/FerOS.dbg.elf
+ASFLAGS    := -msyntax=intel -mmnemonic=intel -mnaked-reg
 CFLAGS     := $(strip \
 	-std=c11 -Wall -pedantic -Iinclude \
 	-ffreestanding -O0 -nostdlib -g \
@@ -51,7 +52,7 @@ $(KERNEL_SYM): $(KERNEL_DBG)
 
 build/%.s.o: src/%.s
 	@mkdir -p $(@D)
-	i686-elf-as $< -o $@
+	i686-elf-as $(ASFLAGS) $< -o $@
 
 build/%.c.o: src/%.c
 	@mkdir -p $(@D)
@@ -66,11 +67,11 @@ mrproper: clean all
 
 
 .PHONY: run run-release debug
-run-release:
+run-release: all
 	qemu-system-i386 -cdrom $(ISO)
-run:
+run: all
 	qemu-system-i386 -s -cdrom $(ISO)
-dbg:
+dbg: all
 	gdb -q \
 		-ex "set disassembly-flavor intel" \
 		-ex "symbol-file $(KERNEL_SYM)" \

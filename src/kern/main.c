@@ -10,6 +10,36 @@ static void hang(void) {
     for(;;);
 }
 
+typedef struct {
+    char signature[4];  // must be "VESA" to indicate valid VBE support
+    uint16_t version;     // VBE version; high byte is major version, low byte is minor version
+    uint32_t oem;         // segment:offset pointer to OEM
+    uint32_t capabilities;// bitfield that describes card capabilities
+    uint32_t video_modes;      // segment:offset pointer to list of supported video modes
+    uint16_t video_memory;      // amount of video memory in 64KB blocks
+    uint16_t software_rev;      // software revision
+    uint32_t vendor;         // segment:offset to card vendor string
+    uint32_t product_name;      // segment:offset to card model name
+    uint32_t product_rev;      // segment:offset pointer to product revision
+    char reserved[222];      // reserved for future expansion
+    char oem_data[256];      // OEM BIOSes store their strings in this area
+} vbe_info;
+     
+extern void Entry16(void);
+
+static void int10h_4f00(void) {
+    vbe_info vi;
+    //Entry16(); // Welp
+    uint16_t ax;
+    asm(
+        "mov ax, 0x4f00\n\t"
+        "mov di, %1\n\t"
+        //"int 0x10\n\t"
+        "mov %0, ax\n\t"
+        : "=r"(ax) : "D"((uint16_t)(uintptr_t)&vi)
+    );
+}
+
 void kern_main(void) {
     size_t x, y, offset, step, entry;
     uint16_t *vga = VGA_BUFADDR;
@@ -23,5 +53,13 @@ void kern_main(void) {
             vga[y*VGA_WIDTH+x] = entry;
         }
     }
+    char hello[] = "Hello world!";
+    char msg[] = "sizeof(void*) is ";
+    for(x=0 ; x<sizeof(hello)-1 ; ++x)
+        vga[x] = vga_entry(hello[x], VGA_WHITE, VGA_BLACK);
+    for(x=0 ; x<sizeof(msg)-1 ; ++x)
+        vga[VGA_WIDTH+x] = vga_entry(msg[x], VGA_WHITE, VGA_BLACK);
+    vga[VGA_WIDTH+x] = vga_entry('0'+sizeof(void*), VGA_WHITE, VGA_BLACK);
+    int10h_4f00();
     hang();
 }
