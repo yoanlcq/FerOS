@@ -38,6 +38,17 @@ static void int10h_4f00(void) {
         "mov %0, ax\n\t"
         : "=r"(ax) : "D"((uint16_t)(uintptr_t)&vi)
     );
+    /*
+    asm(
+        "cli\n\t"
+        "mov     eax,cr0\n\t"
+        "and     al,not 1\n\t"
+        "mov     cr0,eax\n\t"
+        "sti\n\t"
+        "hlt\n\t"
+    );
+    */
+    hang();
 }
 
 void kern_main(void) {
