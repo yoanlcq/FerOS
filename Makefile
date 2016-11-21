@@ -63,4 +63,4 @@ run-release:
 run:
 	qemu-system-i386 -s -cdrom $(ISO)
 dbg:
-	gdb -ex "symbol-file $(KERNEL_SYM)" -ex "target remote localhost:1234"
+	gdb -q -ex "symbol-file $(KERNEL_SYM)" -ex "target remote localhost:1234"

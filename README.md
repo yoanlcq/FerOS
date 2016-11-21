@@ -6,11 +6,15 @@ I'll probably go back to it when I have the time. No expecting to make a feature
 ## What does it run on ? What does it do ?
 It is an i386 kernel (aka 32-bit x86).  
 It does, um... This.  
-![Boot](https://dl.dropboxusercontent.com/u/76675545/feros/hello.png)  
+![Hello](https://dl.dropboxusercontent.com/u/76675545/feros/hello.png)  
 Exciting, isn't it ? c: Didn't go that far beyond VGA text mode.  
   
 Boot time...    
 ![Boot](https://dl.dropboxusercontent.com/u/76675545/feros/boot.png) 
+  
+Debugging with GDB (shortened into `make run` and `make dbg`).
+![Debug](https://dl.dropboxusercontent.com/u/76675545/feros/dbg.png) 
+
 
 ## Requirements
 Development happens on Linux. Haven't given a thought about Windows, OS X and stuff.
@@ -22,4 +26,4 @@ And probably some other stuff I left out, because it's been too long since last 
 
 `make` will build everything.  
 To test, you might want to install `qemu-system-i386` (`sudo apt-get install -y m4 qemu-system-i386`)  
-Then run it with : `qemu-system-i386 -cdrom FerOS.iso`.
+Then run it with : `qemu-system-i386 -cdrom FerOS.iso` (`make run` happens to do this).
