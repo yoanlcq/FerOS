@@ -4,7 +4,7 @@ My toy OS, mostly following the tutorials on [wiki.osdev.org](http://wiki.osdev.
 I'll probably go back to it when I have the time. No expecting to make a feature-complete OS, but it'd be fun to turn it into a game, just like [this project](https://github.com/Overv/MineAssemble). I like the idea that the computer would be dedicated to run that single program, and it'd remind of old consoles. Good times. c:
 
 ## What does it run on ? What does it do ?
-It is an i386 kernel (aka 32-bit x86).  
+It is an i686 kernel (aka 32-bit x86).  
 It does, um... This.  
 ![Hello](https://dl.dropboxusercontent.com/u/76675545/feros/hello.png)  
 Exciting, isn't it ? c: Didn't go that far beyond VGA text mode.  
