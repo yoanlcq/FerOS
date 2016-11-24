@@ -1,4 +1,4 @@
-/bin/bash: e: command not found
+.code16gcc
 .text
 .global _start
 .set STACKTOP,0x7C00
