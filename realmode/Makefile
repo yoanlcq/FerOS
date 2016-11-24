@@ -41,7 +41,7 @@ $(KERNEL): linker.ld $(OFILES)
 
 .PHONY: clean re mrproper
 clean:
-	rm -rf build
+	rm -rf *.o
 re: clean all
 mrproper: clean all
 
