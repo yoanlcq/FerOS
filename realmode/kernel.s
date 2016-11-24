@@ -1,23 +1,26 @@
-.code16gcc
+/bin/bash: e: command not found
 .text
 .global _start
 .set STACKTOP,0x7C00
 _start:
-    mov eax, 0 # Not xor - crashes for some reason
-    mov ds, ax
+    xor ax, ax
     mov es, ax
-    mov ss, ax
-    mov esp, STACKTOP # C functions use 'esp', not only 'sp', 
-                      # so also zero first 2 bytes for safety
 
-    lea si, [STACKTOP+hello]
+    mov ax, STACKTOP>>4
+    mov ds, ax
+    add ax, 512>>4
+    mov ss, ax
+    mov esp, 4096
+
+    lea si, [hello]
     call print_string
     call do_stuff
-    lea si, [STACKTOP+hello2]
+    call test_func
+    lea si, [hello2]
     call print_string
     # Uncomment to test - but it just hangs :/
     # call return_deadc0de
-    lea si, [STACKTOP+hello3]
+    lea si, [hello3]
     call print_string
 foo:
     jmp foo
@@ -29,5 +32,11 @@ print_string:
     int 0x10
     jmp print_string
 done:
+    ret
+test_func:
+    push    ebp
+    mov ebp, esp
+    mov eax, 1145128260
+    pop ebp
     ret
 hello:.asciz "Hello World!\r\n"
