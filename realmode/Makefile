@@ -11,7 +11,7 @@ KERNEL_SYM := kernel.sym
 ASFLAGS    := -msyntax=intel -mmnemonic=intel -mnaked-reg
 CFLAGS     := $(strip \
 	-std=c11 -Wall -pedantic -Iinclude \
-	-ffreestanding -O0 -nostdlib -g \
+	-ffreestanding -O0 -nostdlib \
 	-masm=intel \
 )
 LDLIBS   := 
@@ -28,7 +28,7 @@ all: $(KERNEL)
 
 $(KERNEL): linker.ld $(OFILES)
 	@mkdir -p $(@D)
-	i686-elf-ld -T $< -o $@ $(OFILES) $(LDLIBS)
+	i686-elf-ld -static -T$< -nostdlib --nmagic -o $@ $(OFILES) $(LDLIBS)
 
 %.s.o: %.s
 	@mkdir -p $(@D)

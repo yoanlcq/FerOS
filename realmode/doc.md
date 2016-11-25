@@ -1,3 +1,15 @@
+## Links
+- [...](https://www.reinterpretcast.com/creating-a-bare-bones-bootloader)
+- [...](http://www.codeproject.com/Articles/664165/Writing-a-boot-loader-in-Assembly-and-C-Part)
+
+## Bugs
+#### Why does the OS hang when calling a C function ?
+The actual cause was that the global `const char hello3[]` was placed in
+the `rodata` section, which appeared after the boot signature.
+The answer was that the `rodata` section, for some reason, needs to be
+placed before the boot signature. Need to figure out why.
+
+
 ### linker.ld
 This is the linker script : what is does is specify how our final
 executable's data is to be layed out.  

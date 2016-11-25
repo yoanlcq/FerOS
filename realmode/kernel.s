@@ -1,4 +1,6 @@
 .code16gcc
+.section .rodata
+hello:.asciz "Hello World!\r\n"
 .text
 .global _start
 .set STACKTOP,0x7C00
@@ -18,8 +20,7 @@ _start:
     call test_func
     lea si, [hello2]
     call print_string
-    # Uncomment to test - but it just hangs :/
-    # call return_deadc0de
+    call return_deadc0de
     lea si, [hello3]
     call print_string
 foo:
@@ -39,4 +40,4 @@ test_func:
     mov eax, 1145128260
     pop ebp
     ret
-hello:.asciz "Hello World!\r\n"
+
