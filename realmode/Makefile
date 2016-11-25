@@ -11,7 +11,7 @@ KERNEL_SYM := kernel.sym
 ASFLAGS    := -msyntax=intel -mmnemonic=intel -mnaked-reg
 CFLAGS     := $(strip \
 	-std=c11 -Wall -pedantic -Iinclude \
-	-ffreestanding -O0 -nostdlib \
+	-ffreestanding -O3 -nostdlib \
 	-masm=intel \
 )
 LDLIBS   := 
@@ -46,8 +46,8 @@ re: clean all
 mrproper: clean all
 
 
-.PHONY: run run-release debug
-disas:
+.PHONY: run run-release debug disas
+disas: all
 	i686-elf-objdump \
 		--target binary -mi386 \
 		-Mintel,intel-mnemonic,addr16,data16 \

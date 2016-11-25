@@ -1,9 +1,11 @@
 OUTPUT_FORMAT(binary)
-ENTRY(_start)
+ENTRY(bootloader_start)
 SECTIONS
 {
-	.text : { kernel.s.o (.text) }
+    .start  : { *(.start) }
+	.text   : { *(.text) }
 	.rodata : { *(.rodata) }
-	.data : { *(.data) }
-    bootsig 510 : { BYTE(0x55) BYTE(0xAA) }
+	.rdata  : { *(.rdata) }
+	.data   : { *(.data) }
+    .bootsector0_signature 510 : { BYTE(0x55) BYTE(0xAA) }
 }

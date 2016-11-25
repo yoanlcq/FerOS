@@ -1,0 +1,50 @@
+.code16gcc
+.section .rodata
+hello:.asciz "Hello, Real Mode World!\r\n"
+.text
+.global bootloader_start
+bootloader_start:
+    xor ax, ax
+    mov es, ax
+
+    mov ax, 0x7C00>>4
+    mov ds, ax
+    add ax, 512>>4
+    mov ss, ax
+    mov esp, 4096
+
+    mov si, offset hello
+    call print_string
+
+    #call load_next_sectors
+
+    jmp .
+
+print_string:
+    lodsb
+    or al, al
+    jz print_string_done
+    mov ah, 0x0E
+    int 0x10
+    jmp print_string
+print_string_done:
+    ret
+
+# Disk Address Packet
+.data 
+dap:
+dap_size:   .byte 0
+dap_unused: .byte 0
+dap_sector_count: .byte 0,0
+dap_membuf:       .byte 0,0,0,0
+dap_sector_start_index: .byte 0,0,0,0,0,0,0,0
+.text
+load_next_sectors:
+    mov byte ptr dap_size, 0x10
+    mov byte ptr dap_sector_count, 1
+    mov dword ptr dap_membuf, 0x7C00+512
+    mov dl, 0x80 # 1st drive
+    mov ah, 0x42
+    int 0x13
+    # return code in ah, cf set on error
+    ret
