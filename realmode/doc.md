@@ -6,8 +6,9 @@
 #### Why does the OS hang when calling a C function ?
 The actual cause was that the global `const char hello3[]` was placed in
 the `rodata` section, which appeared after the boot signature.
-The answer was that the `rodata` section, for some reason, needs to be
-placed before the boot signature. Need to figure out why.
+The answer was that the `rodata` section, being after the 512 bytes of the
+boot sector, was not loaded in memory. Since memory was probably zeroed,
+the print_string routine returned early, but did not actually hang.
 
 
 ### linker.ld

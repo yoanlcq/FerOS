@@ -6,8 +6,8 @@ rglob = $(wildcard \
 	$(1)/*/*/*/*/$(2) \
 )
 
-KERNEL     := kernel.bin
-KERNEL_SYM := kernel.sym
+BOOT     := boot.bin
+BOOT_SYM := boot.sym
 ASFLAGS    := -msyntax=intel -mmnemonic=intel -mnaked-reg
 CFLAGS     := $(strip \
 	-std=c11 -Wall -pedantic -Iinclude \
@@ -23,12 +23,12 @@ OFILES   := $(C_OFILES) $(S_OFILES)
 
 
 .PHONY: all
-all: $(KERNEL)
+all: $(BOOT)
 
 
-$(KERNEL): linker.ld $(OFILES)
+$(BOOT): linker.ld $(OFILES)
 	@mkdir -p $(@D)
-	i686-elf-ld -static -T$< -nostdlib --nmagic -o $@ $(OFILES) $(LDLIBS)
+	i686-elf-ld -static -T$< -nostdlib --nmagic $(OFILES) $(LDLIBS) -o $@
 
 %.s.o: %.s
 	@mkdir -p $(@D)
@@ -51,13 +51,13 @@ disas: all
 	i686-elf-objdump \
 		--target binary -mi386 \
 		-Mintel,intel-mnemonic,addr16,data16 \
-		-D $(KERNEL)
+		-D $(BOOT)
 run-release: all
-	qemu-system-i386 -drive format=raw,file=$(KERNEL)
+	qemu-system-i386 -drive format=raw,file=$(BOOT)
 run: all
-	qemu-system-i386 -s -drive format=raw,file=$(KERNEL)
+	qemu-system-i386 -s -drive format=raw,file=$(BOOT)
 dbg: all
 	gdb -q \
 		-ex "set disassembly-flavor intel" \
-		-ex "symbol-file $(KERNEL_SYM)" \
+		-ex "symbol-file $(BOOT_SYM)" \
 		-ex "target remote localhost:1234"
