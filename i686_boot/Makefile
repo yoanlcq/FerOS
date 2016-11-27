@@ -10,9 +10,10 @@ BOOT     := boot.bin
 BOOT_SYM := boot.sym
 ASFLAGS    := -msyntax=intel -mmnemonic=intel -mnaked-reg
 CFLAGS     := $(strip \
-	-std=c11 -Wall -pedantic -Iinclude \
-	-ffreestanding -O3 -nostdlib \
-	-masm=intel \
+	-std=gnu11 -Wall -pedantic -Iinclude \
+	-ffreestanding -nostdlib \
+	-m16 -masm=intel \
+	-O3 -fomit-frame-pointer \
 )
 LDLIBS   := 
 CFILES   := $(wildcard *.c)
@@ -36,7 +37,7 @@ $(BOOT): linker.ld $(OFILES)
 
 %.c.o: %.c
 	@mkdir -p $(@D)
-	i686-elf-gcc -m16 $(CFLAGS) -c $< -o $@
+	i686-elf-gcc $(CFLAGS) -c $< -o $@
 
 
 .PHONY: clean re mrproper
