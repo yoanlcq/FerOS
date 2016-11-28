@@ -1,4 +1,6 @@
 ## Links
+- [...](http://wiki.osdev.org/Segmentation)
+- [...](http://wiki.osdev.org/Stack)
 - [...](https://www.reinterpretcast.com/creating-a-bare-bones-bootloader)
 - [...](http://www.codeproject.com/Articles/664165/Writing-a-boot-loader-in-Assembly-and-C-Part)
 

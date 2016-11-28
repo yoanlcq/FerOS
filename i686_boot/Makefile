@@ -8,12 +8,13 @@ rglob = $(wildcard \
 
 BOOT     := boot.bin
 BOOT_SYM := boot.sym
-ASFLAGS    := -msyntax=intel -mmnemonic=intel -mnaked-reg
+ASFLAGS    := -march=i686 -msyntax=intel -mmnemonic=intel -mnaked-reg
+LDFLAGS    := -melf_i386 -static -nostdlib --nmagic
 CFLAGS     := $(strip \
-	-std=gnu11 -Wall -pedantic -Iinclude \
+	-std=gnu11 -Wall -Wextra -Wshadow -pedantic -Iinclude \
 	-ffreestanding -nostdlib \
-	-m16 -masm=intel \
-	-O3 -fomit-frame-pointer \
+    -march=i686 -m16 -masm=intel \
+	-fomit-frame-pointer -Os \
 )
 LDLIBS   := 
 CFILES   := $(wildcard *.c)
@@ -29,15 +30,15 @@ all: $(BOOT)
 
 $(BOOT): linker.ld $(OFILES)
 	@mkdir -p $(@D)
-	i686-elf-ld -static -T$< -nostdlib --nmagic $(OFILES) $(LDLIBS) -o $@
+	ld $(LDFLAGS) -T$< $(OFILES) -o $@ $(LDLIBS)
 
 %.s.o: %.s
 	@mkdir -p $(@D)
-	i686-elf-as $(ASFLAGS) $< -o $@
+	as $(ASFLAGS) $< -o $@
 
 %.c.o: %.c
 	@mkdir -p $(@D)
-	i686-elf-gcc $(CFLAGS) -c $< -o $@
+	gcc $(CFLAGS) -c $< -o $@
 
 
 .PHONY: clean re mrproper
@@ -49,8 +50,7 @@ mrproper: clean all
 
 .PHONY: run run-release debug disas
 disas: all
-	i686-elf-objdump \
-		--target binary -mi386 \
+	objdump -mi386 --target binary \
 		-Mintel,intel-mnemonic,addr16,data16 \
 		-D $(BOOT)
 run-release: all
