@@ -11,10 +11,10 @@ BOOT_SYM := boot.sym
 ASFLAGS    := -march=i686 -msyntax=intel -mmnemonic=intel -mnaked-reg
 LDFLAGS    := -melf_i386 -static -nostdlib --nmagic
 CFLAGS     := $(strip \
-	-std=gnu11 -Wall -Wextra -Wshadow -pedantic -Iinclude \
+	-std=gnu11 -Wall -Wextra -Wshadow -pedantic -Iinclude -I. \
 	-ffreestanding -nostdlib \
     -march=i686 -m16 -masm=intel \
-	-fomit-frame-pointer -Os \
+	-fomit-frame-pointer -fno-asynchronous-unwind-tables -Os \
 )
 LDLIBS   := 
 CFILES   := $(wildcard *.c)

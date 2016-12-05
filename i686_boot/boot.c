@@ -1,15 +1,5 @@
-#define LFTAB "\n\t"
-#define DECL_SECTION(sec) __attribute__((section(#sec)))
-#define DECL_NOINLINE __attribute__((noinline))
-#define SECTOR_MEM  0x7C00
-#define SECTOR_SIZE 512
-#define STACK_SIZE  4096
-
-#include <stddef.h>
-#include <stdint.h>
-#include <stdnoreturn.h>
-
-uint8_t boot_drive_number = 0;
+#include <defs.h>
+#include <bios.h>
 
 static void putchar(char c) {
     asm (
@@ -31,13 +21,20 @@ static void putline(const char *str) {
 
 noreturn static void hang() { for(;;); }
 
+static uint8_t boot_drive_number = 0;
+
 void main(void) {
     putline("Hello, Real Mode World!");
-    puts("Boot drive number: ");
-    char hexb[] = "0x  ";
-    hexb[2] = '0' + (boot_drive_number>>4);
-    hexb[3] = '0' + (boot_drive_number&0xf);
-    putline(hexb);
+    //char buf[512];
+    //buf[0] = 'x';
+    //uint8_t ret = bios_read_sectors_ex(boot_drive_number, buf, 0, 1);
+    //ret = bios_drive_get_status();
+    //buf[8] = '\0';
+    ////putline(buf);
+    //buf[0] = '0' + (ret>>4);
+    //buf[1] = '0' + (ret&0xf);
+    //buf[2] = '\0';
+    //putline(buf);
 }
 
 #define SECTOR_START ((SECTOR_MEM)/16)
