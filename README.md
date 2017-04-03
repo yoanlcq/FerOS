@@ -6,14 +6,14 @@ I'll probably go back to it when I have the time. No expecting to make a feature
 ## What does it run on ? What does it do ?
 It is an i686 kernel (aka 32-bit x86).  
 It does, um... This.  
-![Hello](https://dl.dropboxusercontent.com/u/76675545/feros/hello.png)  
+![Hello](http://yoanlecoq.com/dl/dev/feros/hello.png)  
 Exciting, isn't it ? c: Didn't go that far beyond VGA text mode.  
   
 Boot time...    
-![Boot](https://dl.dropboxusercontent.com/u/76675545/feros/boot.png) 
+![Boot](http://yoanlecoq.com/dl/dev/feros/boot.png) 
   
 Debugging with GDB (shortened into `make run` and `make dbg`).
-![Debug](https://dl.dropboxusercontent.com/u/76675545/feros/dbg.png) 
+![Debug](http://yoanlecoq.com/dl/dev/feros/dbg.png) 
 
 
 ## Requirements
