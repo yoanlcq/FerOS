@@ -24,6 +24,8 @@ C_OFILES := $(patsubst src/%.c,build/%.c.o,$(CFILES))
 S_OFILES := $(patsubst src/%.s,build/%.s.o,$(SFILES))
 OFILES   := $(C_OFILES) $(S_OFILES)
 
+gcc := i686-elf-gcc
+as  := i686-elf-as
 
 .PHONY: all
 all: $(ISO)
@@ -45,18 +47,18 @@ $(KERNEL): $(KERNEL_DBG) $(KERNEL_SYM)
 	objcopy --strip-debug $@
 $(KERNEL_DBG): src/arch/i686/linker.ld $(OFILES)
 	@mkdir -p $(@D)
-	i686-elf-gcc -T $< -o $@ $(CFLAGS) $(OFILES) $(LDLIBS)
+	$(gcc) -T $< -o $@ $(CFLAGS) $(OFILES) $(LDLIBS)
 $(KERNEL_SYM): $(KERNEL_DBG)
 	@mkdir -p $(@D)
 	objcopy --only-keep-debug $< $@
 
 build/%.s.o: src/%.s
 	@mkdir -p $(@D)
-	i686-elf-as $(ASFLAGS) $< -o $@
+	$(as) $(ASFLAGS) $< -o $@
 
 build/%.c.o: src/%.c
 	@mkdir -p $(@D)
-	i686-elf-gcc $(CFLAGS) -c $< -o $@
+	$(gcc) $(CFLAGS) -c $< -o $@
 
 
 .PHONY: clean re mrproper
@@ -66,11 +68,17 @@ re: clean all
 mrproper: clean all
 
 
-.PHONY: run run-release debug
+.PHONY: run run-release dbg
 run-release: all
 	qemu-system-i386 -cdrom $(ISO)
 run: all
 	qemu-system-i386 -s -cdrom $(ISO)
+# NOTE: We don't start QEMU in background in `dbg` because it doesn't work
+# until we've entered the kernel.
+# Instead, do:
+# 	make run &
+# Then wait, boot in QEMU, then
+# 	make dbg
 dbg: all
 	gdb -q \
 		-ex "set disassembly-flavor intel" \
