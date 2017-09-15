@@ -1,0 +1,7 @@
+# Why are all local labels prefixed with `.L_` ?
+
+Because the `.L` part somehow instructs `as` that the label is, indeed,
+local to a function. This convention varies per target, but for ELF it's `.L`.  
+
+You'll see the difference if you try `disas some_func` when its first local
+labels starts with `.L`, versus when it doesn't.
