@@ -1,6 +1,8 @@
 # Declares a Multiboot header.
 # https://www.gnu.org/software/grub/manual/multiboot/multiboot.html#boot_002eS
 
+.include "macros.s"
+
 	.set mb_align,    1<<0             # align loaded modules on page boundaries
 	.set mb_meminfo,  1<<1             # provide memory map
 	# TODO mb_videomode ?
@@ -9,7 +11,7 @@
 	.set mb_checksum, -(mb_magic + mb_flags) # checksum of above, to prove we are multiboot
 	
 	.section .multiboot
-	.balign 32 # Aligne to 32-byte boundary
+	.balign 32 # Align to 32-byte boundary
 	.long mb_magic
 	.long mb_flags
 	.long mb_checksum
@@ -30,15 +32,13 @@ stack_bottom:
 stack_top:
 
 	.section .text
-	.global	_start
-	.type _start, @function
-_start:
-	# Initialise stack pointer
+.fn _start
+	# Initialize stack pointer
 	mov		esp, stack_top
 	mov		ebp, stack_top
 
 	# Reset EFLAGS
-	push 0x00000000l
+	pushd 0
 	popf
 
 	# Push pointer to Multiboot information structure
@@ -46,8 +46,6 @@ _start:
 	# Push magic value
 	push eax
 
-	mov		esp, ebp
-	sub		esp, 32
 	call	main
 	cli
 .L_hang:

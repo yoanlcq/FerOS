@@ -1,2 +1,12 @@
 --- The OS doesn't boot when I add string constants  ---
 Edit 'linker.ld', and replace each instance of 'rodata' by 'rdata'.
+
+--- A global symbol in .rdata section is suddenly random garbage ---
+Don't declare it in `.rdata`, but in `.rodata` instead.
+```asm
+	.section .rodata
+	.global hello_world
+	.type hello_world, @common
+hello_world:
+	.asciz "Hello World! It works! It's awesome!"
+```

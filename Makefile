@@ -26,6 +26,13 @@ ld  := i686-elf-ld
 objcopy := i686-elf-objcopy
 qemu-system := qemu-system-i386
 
+gdbflags := $(strip \
+	-q -tui \
+	-ex "set disassembly-flavor intel" \
+	-ex "file $(kernel)" \
+	-ex "symbol-file $(kernel_sym)" \
+	-ex "target remote :1234" \
+)
 cflags  := $(strip \
 	-std=c11 -Wall -pedantic -Iinclude \
 	-ffreestanding -O0 -nostdlib -nostdinc -g -ggdb \
@@ -33,15 +40,29 @@ cflags  := $(strip \
 	-fno-stack-protector -static -fno-pic \
 	-masm=intel \
 )
-# -L is used to preserve local labels information
-asflags := -L --fatal-warnings -msyntax=intel -mmnemonic=intel -mnaked-reg
-ldflags := -melf_i386
-ldlibs  := #-lgcc
+asflags := $(strip \
+	-g --gstabs+ -L --fatal-warnings -Isrc/ \
+	-msyntax=intel -mmnemonic=intel -mnaked-reg \
+)
+ldlibs  := -lgcc
 
 
 .PHONY: all
 all: $(iso)
 
+
+$(kernel_dbg): src/elf.ld $(ofiles)
+	@mkdir -p $(@D)
+	$(gcc) $(cflags) -T $< -o $@ $(ofiles) $(ldlibs)
+
+$(kernel_sym): $(kernel_dbg)
+	@mkdir -p $(@D)
+	$(objcopy) --only-keep-debug $< $@
+
+$(kernel): $(kernel_dbg) $(kernel_sym)
+	@mkdir -p $(@D)
+	$(objcopy) --strip-all $< $@
+	grub-file --is-x86-multiboot $@ # Check that our kernel is multiboot-compliant
 
 $(grubcfg): 
 	@mkdir -p $(@D)
@@ -53,18 +74,6 @@ $(iso): $(kernel) $(kernel_sym) $(grubcfg)
 	@mkdir -p $(@D)
 	grub-mkrescue /usr/lib/grub/i386-pc -o $@ isodir/
 
-$(kernel): $(kernel_dbg) $(kernel_sym)
-	@mkdir -p $(@D)
-	$(objcopy) --strip-all $< $@
-	$(objcopy) --add-gnu-debuglink=$(kernel_sym) $@
-
-$(kernel_dbg): src/elf.ld $(ofiles)
-	@mkdir -p $(@D)
-	$(ld) $(ldflags) -T $< -o $@ $(ofiles) $(ldlibs)
-
-$(kernel_sym): $(kernel_dbg)
-	@mkdir -p $(@D)
-	$(objcopy) --only-keep-debug $< $@
 
 build/%.s.o: src/%.s
 	@mkdir -p $(@D)
@@ -82,20 +91,14 @@ re: clean all
 mrproper: clean all
 
 
-.PHONY: run run-release dbg dbg-here
+.PHONY: run run-release run-suspended
 run-release: all
 	$(qemu-system) -cdrom $(iso)
 run: all
 	$(qemu-system) -gdb tcp::1234 -cdrom $(iso)
 dbg: all
-	$(qemu-system) -gdb tcp::1234 -S -cdrom $(iso) &
-	$(gdb) -q \
-		-ex "set disassembly-flavor intel" \
-		-ex "symbol-file $(kernel_sym)" \
-		-ex "target remote :1234" \
-		-ex "continue"
-dbg-here: all
-	$(gdb) -q \
-		-ex "set disassembly-flavor intel" \
-		-ex "symbol-file $(kernel_sym)" \
-		-ex "target remote :1234"
+	$(gdb) $(gdbflags)
+run-dbg: all
+	$(qemu-system) -S -gdb tcp::1234 -cdrom $(iso) &
+	$(gdb) $(gdbflags) -ex "continue"
+
