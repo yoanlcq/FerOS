@@ -23,7 +23,7 @@ gdb := i686-elf-gdb
 gcc := i686-elf-gcc
 as  := i686-elf-as
 ld  := i686-elf-ld
-objcopy := i686-elf-objcopy -F elf32-i386
+objcopy := i686-elf-objcopy
 qemu-system := qemu-system-i386
 
 cflags  := $(strip \
@@ -64,7 +64,7 @@ $(kernel_dbg): src/elf.ld $(ofiles)
 
 $(kernel_sym): $(kernel_dbg)
 	@mkdir -p $(@D)
-	$(objcopy) --only-keep-debug --debugging $< $@
+	$(objcopy) --only-keep-debug $< $@
 
 build/%.s.o: src/%.s
 	@mkdir -p $(@D)
