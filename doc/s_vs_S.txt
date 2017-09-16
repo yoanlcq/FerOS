@@ -1,0 +1,5 @@
+--- Is there any difference between `.S` and `.s` ? ---
+Yes. GCC treats `.S` and `.sx` files as "assembly which needs 
+pre-processing with the C preprocessor".
+
+`.s` file are _assumed_ to be pre-processed assembly files.

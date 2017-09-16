@@ -33,17 +33,18 @@ gdbflags := $(strip \
 	-ex "symbol-file $(kernel_sym)" \
 	-ex "target remote :1234" \
 )
-cflags  := $(strip \
-	-std=c11 -Wall -pedantic -Iinclude \
+gccflags  := $(strip \
+	-std=c11 -Wall -Wextra -Werror -Iinclude \
 	-ffreestanding -O0 -nostdlib -nostdinc -g -ggdb \
 	-fno-builtin -nostartfiles -nodefaultlibs -fno-exceptions \
 	-fno-stack-protector -static -fno-pic \
 	-masm=intel \
 )
 asflags := $(strip \
-	-g --gstabs+ -L --fatal-warnings -Isrc/ \
+	-g --gstabs+ -L --fatal-warnings \
 	-msyntax=intel -mmnemonic=intel -mnaked-reg \
 )
+gcc_asflags := $(patsubst %,-Wa\,%,$(asflags))
 ldlibs  := -lgcc
 
 
@@ -53,7 +54,7 @@ all: $(iso)
 
 $(kernel_dbg): src/elf.ld $(ofiles)
 	@mkdir -p $(@D)
-	$(gcc) $(cflags) -T $< -o $@ $(ofiles) $(ldlibs)
+	$(gcc) $(gccflags) -T $< -o $@ $(ofiles) $(ldlibs)
 
 $(kernel_sym): $(kernel_dbg)
 	@mkdir -p $(@D)
@@ -81,7 +82,7 @@ build/%.s.o: src/%.s
 
 build/%.c.o: src/%.c
 	@mkdir -p $(@D)
-	$(gcc) $(cflags) -c $< -o $@
+	$(gcc) $(gccflags) -c $< -o $@
 
 
 .PHONY: clean re mrproper
