@@ -3,6 +3,7 @@
  * https://www.gnu.org/software/grub/manual/multiboot/multiboot.html#boot_002eS
  */
 
+#include <macros.S>
 #include <multiboot.h>
 
 	.set mbh_magic,			0x1BADB002
@@ -53,8 +54,8 @@ stack_top:
 
 	push	ebx # 32-bit physical address to Multiboot information structure
 	push	eax # Must contain 0x2BADBOO2
-
 	call	main
+
 	cli
 .L_hang:
 	hlt

@@ -1,0 +1,10 @@
+--- What's `asm volatile` and should we use it ? ---
+
+Roughly, `volatile` after `asm` instructs GCC's optimizers that our
+inline assembly has side effects which are not obvious looking at the
+input operands, output operands and clobbers.
+
+When in doubt, I prefer to put `volatile` in order to stay safe. There _might_
+be some cases where it's not "optimal" but in general we don't really care
+(or it doesn't change the output either way),
+and would rather risk introducing super-hard-to-diagnose bugs.

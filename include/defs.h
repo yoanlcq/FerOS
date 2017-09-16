@@ -9,3 +9,15 @@
 #endif
 
 #define asm __asm__
+#define LFTAB "\n\t"
+/*
+ * inline ASM format:
+ * asm [volatile] ( AssemblerTemplate 
+ *   : OutputOperands 
+ *   [ : InputOperands
+ *   [ : Clobbers ] ])
+ */
+
+#include <stdint.h>
+typedef uint32_t size_t;
+typedef int32_t ssize_t;

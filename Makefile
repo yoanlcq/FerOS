@@ -16,15 +16,23 @@ kernel_dbg := build/$(os_name).dbg.elf
 
 cfiles := $(call rglob,src,*.c)
 sfiles := $(call rglob,src,*.s)
+Sfiles := $(call rglob,src,*.S)
 ofiles := $(patsubst src/%.c,build/%.c.o,$(cfiles))
 ofiles += $(patsubst src/%.s,build/%.s.o,$(sfiles))
+ofiles += $(patsubst src/%.S,build/%.S.o,$(Sfiles))
 
 gdb := i686-elf-gdb
 gcc := i686-elf-gcc
 as  := i686-elf-as
 ld  := i686-elf-ld
 objcopy := i686-elf-objcopy
-qemu-system := qemu-system-i386
+objdump := i686-elf-objdump -M intel
+qemu-system := qemu-system-i386 $(strip \
+	-name $(os_name) \
+	-serial file:logs/serial.log \
+	-serial stdio \
+)
+# ^ Redirect Guest COM1 to log file, and guest COM2 to stdio
 
 gdbflags := $(strip \
 	-q -tui \
@@ -35,16 +43,18 @@ gdbflags := $(strip \
 )
 gccflags  := $(strip \
 	-std=c11 -Wall -Wextra -Werror -Iinclude \
-	-ffreestanding -O0 -nostdlib -nostdinc -g -ggdb \
+	-ffreestanding -Og -nostdlib -g -ggdb \
 	-fno-builtin -nostartfiles -nodefaultlibs -fno-exceptions \
 	-fno-stack-protector -static -fno-pic \
 	-masm=intel \
+	-DQEMU_GUEST \
 )
 asflags := $(strip \
-	-g --gstabs+ -L --fatal-warnings \
+	-g --gstabs+ -L --fatal-warnings -Iinclude \
 	-msyntax=intel -mmnemonic=intel -mnaked-reg \
 )
-gcc_asflags := $(patsubst %,-Wa\,%,$(asflags))
+wa_prefix := -Wa,
+gcc_asflags := $(patsubst %,$(wa_prefix)%,$(asflags))
 ldlibs  := -lgcc
 
 
@@ -79,10 +89,18 @@ $(iso): $(kernel) $(kernel_sym) $(grubcfg)
 build/%.s.o: src/%.s
 	@mkdir -p $(@D)
 	$(as) $(asflags) $< -o $@
+	$(objdump) --disassemble-all --prefix-addresses $@ > $@.dump
+
+build/%.S.o: src/%.S
+	@mkdir -p $(@D)
+	$(gcc) $(gccflags) $(gcc_asflags) -DASM_FILE=1 -c $< -o $@
+	$(objdump) --disassemble-all --prefix-addresses $@ > $@.dump
 
 build/%.c.o: src/%.c
 	@mkdir -p $(@D)
 	$(gcc) $(gccflags) -c $< -o $@
+	$(gcc) $(gccflags) -S $< -o $@.S
+	$(objdump) --disassemble-all --prefix-addresses $@ > $@.dump
 
 
 .PHONY: clean re mrproper
@@ -94,12 +112,15 @@ mrproper: clean all
 
 .PHONY: run run-release run-suspended
 run-release: all
+	@mkdir logs
 	$(qemu-system) -cdrom $(iso)
 run: all
+	@mkdir logs
 	$(qemu-system) -gdb tcp::1234 -cdrom $(iso)
 dbg: all
 	$(gdb) $(gdbflags)
 run-dbg: all
+	@mkdir logs
 	$(qemu-system) -S -gdb tcp::1234 -cdrom $(iso) &
 	$(gdb) $(gdbflags) -ex "continue"
 

@@ -1,9 +1,13 @@
+/* Useful assembly-side macros */
+
+/* .cst - Define a public constant */
 	.macro .cst sym, value
 	.global \sym
 	.set \sym, \value
 	.type \sym, @common
 	.endm
 
+/* .fn - Define a public function */
 	.macro .fn sym
 	.global \sym
 	.type \sym, @function

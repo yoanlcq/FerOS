@@ -1,7 +1,5 @@
 #pragma once
 
-#include <stdint.h>
-
 #define MULTIBOOT_SEARCH                        8192
 #define MULTIBOOT_HEADER_ALIGN                  4
 #define MULTIBOOT_HEADER_MAGIC                  0x1BADB002
@@ -26,6 +24,10 @@
 #define MULTIBOOT_INFO_APM_TABLE                0x00000400
 #define MULTIBOOT_INFO_VBE_INFO                 0x00000800
 #define MULTIBOOT_INFO_FRAMEBUFFER_INFO         0x00001000
+
+#ifndef ASM_FILE
+
+#include <stdint.h>
 
 typedef struct {
     uint32_t magic;
@@ -137,7 +139,11 @@ typedef struct {
 #define MULTIBOOT_MEMORY_NVS                    4
 #define MULTIBOOT_MEMORY_BADRAM                 5
     uint32_t type;
-} MultibootMmapEntry __attribute__((packed));
+} MultibootMmapEntry
+#ifndef __i386__
+    __attribute__((packed))
+#endif
+;
 
 typedef struct {
     /* the memory used goes from bytes 'mod_start' to 'mod_end-1' inclusive */
@@ -162,3 +168,5 @@ typedef struct {
     uint16_t cseg_16_len;
     uint16_t dseg_len;
 } MultibootApmInfo;
+
+#endif // ASM_FILE

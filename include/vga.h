@@ -22,9 +22,9 @@ typedef enum {
 } VgaColor;
 
 typedef struct {
-    uint8_t bg: 4;
-    uint8_t fg: 4;
     uint8_t ascii;
+    uint8_t fg: 4;
+    uint8_t bg: 4;
 } VgaCell;
 
 static inline VgaCell VgaCell_new(uint8_t ascii, VgaColor fg, VgaColor bg) {
@@ -33,6 +33,10 @@ static inline VgaCell VgaCell_new(uint8_t ascii, VgaColor fg, VgaColor bg) {
     };
 }
 
-#define VGA_FB ((VgaCell*)0xB8000)
+#define VGA_FB ((volatile VgaCell*)0xB8000)
 #define VGA_W 80
 #define VGA_H 25
+
+
+void vga_puts(const char *str, VgaColor fg, VgaColor bg);
+void vga_puts_logd(const char *str, VgaColor fg, VgaColor bg);
