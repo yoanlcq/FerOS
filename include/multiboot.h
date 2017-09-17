@@ -1,172 +1,182 @@
 #pragma once
 
-#define MULTIBOOT_SEARCH                        8192
-#define MULTIBOOT_HEADER_ALIGN                  4
-#define MULTIBOOT_HEADER_MAGIC                  0x1BADB002
-#define MULTIBOOT_BOOTLOADER_MAGIC              0x2BADB002
-#define MULTIBOOT_MOD_ALIGN                     0x00001000
-#define MULTIBOOT_INFO_ALIGN                    0x00000004
-#define MULTIBOOT_PAGE_ALIGN                    0x00000001
-#define MULTIBOOT_MEMORY_INFO                   0x00000002
-#define MULTIBOOT_VIDEO_MODE                    0x00000004
-#define MULTIBOOT_AOUT_KLUDGE                   0x00010000
+#define MB_SEARCH                8192u
+#define MB_HEADER_ALIGN          4u
+#define MB_HEADER_MAGIC          0x1BADB002u
+#define MB_BOOTLOADER_MAGIC      0x2BADB002u
+#define MB_MOD_ALIGN             0x00001000u
+#define MB_INFO_ALIGN            0x00000004u
+#define MB_PAGE_ALIGN            0x00000001u
+#define MB_MEMORY_INFO           0x00000002u
+#define MB_VIDEO_MODE            0x00000004u
+#define MB_AOUT_KLUDGE           0x00010000u
 
-#define MULTIBOOT_INFO_MEMORY                   0x00000001
-#define MULTIBOOT_INFO_BOOTDEV                  0x00000002
-#define MULTIBOOT_INFO_CMDLINE                  0x00000004
-#define MULTIBOOT_INFO_MODS                     0x00000008
-#define MULTIBOOT_INFO_AOUT_SYMS                0x00000010
-#define MULTIBOOT_INFO_ELF_SHDR                 0X00000020
-#define MULTIBOOT_INFO_MEM_MAP                  0x00000040
-#define MULTIBOOT_INFO_DRIVE_INFO               0x00000080
-#define MULTIBOOT_INFO_CONFIG_TABLE             0x00000100
-#define MULTIBOOT_INFO_BOOT_LOADER_NAME         0x00000200
-#define MULTIBOOT_INFO_APM_TABLE                0x00000400
-#define MULTIBOOT_INFO_VBE_INFO                 0x00000800
-#define MULTIBOOT_INFO_FRAMEBUFFER_INFO         0x00001000
+#define MB_INFO_MEMORY           0x00000001u
+#define MB_INFO_BOOTDEV          0x00000002u
+#define MB_INFO_CMDLINE          0x00000004u
+#define MB_INFO_MODS             0x00000008u
+#define MB_INFO_AOUT_SYMS        0x00000010u
+#define MB_INFO_ELF_SHDR         0X00000020u
+#define MB_INFO_MEM_MAP          0x00000040u
+#define MB_INFO_DRIVE_INFO       0x00000080u
+#define MB_INFO_CONFIG_TABLE     0x00000100u
+#define MB_INFO_BOOT_LOADER_NAME 0x00000200u
+#define MB_INFO_APM_TABLE        0x00000400u
+#define MB_INFO_VBE_INFO         0x00000800u
+#define MB_INFO_FRAMEBUFFER_INFO 0x00001000u
 
 #ifndef ASM_FILE
 
 #include <stdint.h>
 
 typedef struct {
-    uint32_t magic;
-    uint32_t flags;
-    uint32_t checksum;
-    /* These are only valid if MULTIBOOT_AOUT_KLUDGE is set. */
-    uint32_t header_addr;
-    uint32_t load_addr;
-    uint32_t load_end_addr;
-    uint32_t bss_end_addr;
-    uint32_t entry_addr;
-    /* These are only valid if MULTIBOOT_VIDEO_MODE is set. */
-    uint32_t mode_type;
-    uint32_t width;
-    uint32_t height;
-    uint32_t depth;
+    u32 magic;
+    u32 flags;
+    u32 checksum;
+    // These are only valid if MB_AOUT_KLUDGE is set.
+    u32 header_addr;
+    u32 load_addr;
+    u32 load_end_addr;
+    u32 bss_end_addr;
+    u32 entry_addr;
+    // These are only valid if MB_VIDEO_MODE is set.
+    u32 mode_type;
+    u32 width;
+    u32 height;
+    u32 depth;
 } MultibootHeader;
 
 typedef struct {
-    uint32_t num;
-    uint32_t size;
-    uint32_t addr;
-    uint32_t shndx;
+    u32 num;
+    u32 size;
+    u32 addr;
+    u32 shndx;
 } MultibootElfSectionHeaderTable;
 
 typedef struct {
-    /* Multiboot info version number */
-    uint32_t flags;
+    u32 control_info;
+    u32 mode_info;
+    u16 mode;
+    u16 interface_seg;
+    u16 interface_off;
+    u16 interface_len;
+} MultibootInfoVbe;
 
-    /* Available memory from BIOS */
-    uint32_t mem_lower;
-    uint32_t mem_upper;
+typedef struct {
+    u64 addr;
+    u32 pitch;
+    u32 width;
+    u32 height;
+    u8  bpp;
+#define MB_FRAMEBUFFER_TYPE_INDEXED  0
+#define MB_FRAMEBUFFER_TYPE_RGB      1
+#define MB_FRAMEBUFFER_TYPE_EGA_TEXT 2
+    u8  type;
+    union {
+        struct {
+            u32 addr; // Pointer to array of Rgb24.
+            u16 num_colors;
+        } palette;
+        struct {
+            u8 r_bits_offset;
+            u8 r_num_bits;
+            u8 g_bits_offset;
+            u8 g_num_bits;
+            u8 b_bits_offset;
+            u8 b_num_bits;
+        };
+    };
+} MultibootFramebuffer;
 
-    /* "root" partition */
-    uint32_t boot_device;
+typedef struct {
+    // Multiboot info version number
+    u32 flags;
 
-    /* Kernel command line */
-    uint32_t cmdline;
+    // Available memory from BIOS
+    struct {
+        u32 lower;
+        u32 upper;
+    } mem;
 
-    /* Boot-Module list */
-    uint32_t mods_count;
-    uint32_t mods_addr;
+    // "root" partition
+    u32 boot_device;
+
+    // Kernel command line
+    u32 cmdline;
+
+    // Boot-Module list
+    struct {
+        u32 count;
+        u32 addr;
+    } mods;
 
     MultibootElfSectionHeaderTable elf_sec;
 
-    /* Memory Mapping buffer */
-    uint32_t mmap_length;
-    uint32_t mmap_addr;
+    // Memory Mapping buffer
+    struct {
+        u32 length;
+        u32 addr;
+    } mmap;
 
-    /* Drive Info buffer */
-    uint32_t drives_length;
-    uint32_t drives_addr;
+    // Drive Info buffer
+    struct {
+        u32 length;
+        u32 addr;
+    } drives;
 
-    /* ROM configuration table */
-    uint32_t config_table;
+    // ROM configuration table
+    u32 config_table;
 
-    /* Boot Loader Name */
-    uint32_t boot_loader_name;
+    // Boot Loader Name
+    u32 boot_loader_name;
 
-    /* APM table */
-    uint32_t apm_table;
+    // APM table
+    u32 apm_table;
 
-    /* Video */
-    uint32_t vbe_control_info;
-    uint32_t vbe_mode_info;
-    uint16_t vbe_mode;
-    uint16_t vbe_interface_seg;
-    uint16_t vbe_interface_off;
-    uint16_t vbe_interface_len;
+    // Video
+    MultibootInfoVbe vbe;
+    MultibootFramebuffer framebuffer;
 
-    uint64_t framebuffer_addr;
-    uint32_t framebuffer_pitch;
-    uint32_t framebuffer_width;
-    uint32_t framebuffer_height;
-    uint8_t framebuffer_bpp;
-#define MULTIBOOT_FRAMEBUFFER_TYPE_INDEXED 0
-#define MULTIBOOT_FRAMEBUFFER_TYPE_RGB     1
-#define MULTIBOOT_FRAMEBUFFER_TYPE_EGA_TEXT     2
-    uint8_t framebuffer_type;
-    union {
-        struct {
-            uint32_t framebuffer_palette_addr;
-            uint16_t framebuffer_palette_num_colors;
-        };
-        struct {
-            uint8_t framebuffer_red_field_position;
-            uint8_t framebuffer_red_mask_size;
-            uint8_t framebuffer_green_field_position;
-            uint8_t framebuffer_green_mask_size;
-            uint8_t framebuffer_blue_field_position;
-            uint8_t framebuffer_blue_mask_size;
-        };
-    };
 } MultibootInfo;
 
 typedef struct {
-    uint8_t red;
-    uint8_t green;
-    uint8_t blue;
-} MultibootColor;
-
-typedef struct {
-    uint32_t size;
-    uint64_t addr;
-    uint64_t len;
-#define MULTIBOOT_MEMORY_AVAILABLE              1
-#define MULTIBOOT_MEMORY_RESERVED               2
-#define MULTIBOOT_MEMORY_ACPI_RECLAIMABLE       3
-#define MULTIBOOT_MEMORY_NVS                    4
-#define MULTIBOOT_MEMORY_BADRAM                 5
-    uint32_t type;
+    u32 size;
+    u64 addr;
+    u64 len;
+#define MB_MEMORY_AVAILABLE        1
+#define MB_MEMORY_RESERVED         2
+#define MB_MEMORY_ACPI_RECLAIMABLE 3
+#define MB_MEMORY_NVS              4
+#define MB_MEMORY_BADRAM           5
+    u32 type;
 } MultibootMmapEntry
-#ifndef __i386__
-    __attribute__((packed))
+#ifndef targets_ia32
+    c_attr(packed)
 #endif
 ;
 
 typedef struct {
-    /* the memory used goes from bytes 'mod_start' to 'mod_end-1' inclusive */
-    uint32_t mod_start;
-    uint32_t mod_end;
+    // The memory used goes from bytes 'start' to 'end-1' inclusive
+    u32 start;
+    u32 end;
 
-    /* Module command line */
-    uint32_t cmdline;
+    // Module command line
+    u32 cmdline;
 
-    /* padding to take it to 16 bytes (must be zero) */
-    uint32_t pad;
+    // padding to take it to 16 bytes (must be zero)
+    u32 pad;
 } MultibootModList;
 
 typedef struct {
-    uint16_t version;
-    uint16_t cseg;
-    uint32_t offset;
-    uint16_t cseg_16;
-    uint16_t dseg;
-    uint16_t flags;
-    uint16_t cseg_len;
-    uint16_t cseg_16_len;
-    uint16_t dseg_len;
+    u16 version;
+    u16 cseg;
+    u32 offset;
+    u16 cseg_16;
+    u16 dseg;
+    u16 flags;
+    u16 cseg_len;
+    u16 cseg_16_len;
+    u16 dseg_len;
 } MultibootApmInfo;
 
 #endif // ASM_FILE

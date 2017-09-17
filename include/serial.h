@@ -3,17 +3,14 @@
 
 #pragma once
 
-#include <stdint.h>
-#include <stdbool.h>
-
 // XXX: Not 100% reliable ??
-static const uint16_t COM1 = 0x3F8;
-static const uint16_t COM2 = 0x2F8;
-static const uint16_t COM3 = 0x3E8;
-static const uint16_t COM4 = 0x2E8;
+#define COM1 ((u16)0x3F8)
+#define COM2 ((u16)0x2F8)
+#define COM3 ((u16)0x3E8)
+#define COM4 ((u16)0x2E8)
 
 typedef struct {
-    uint16_t port;
+    u16 port;
 } Serial;
 
 typedef enum {
@@ -33,8 +30,8 @@ typedef enum {
 } SerialPortOffset;
 
 
-Serial Serial_new(uint16_t port);
+Serial Serial_new(u16 port);
 bool Serial_can_recv(Serial s); // Can we receive without blocking ?
 bool Serial_can_send(Serial s); // Can we send without blocking ?
-uint8_t Serial_recv_u8(Serial s); // Blocking receive
-void Serial_send_u8(Serial s, uint8_t a); // Blocking send
+u8 Serial_recv_u8(Serial s); // Blocking receive
+void Serial_send_u8(Serial s, u8 a); // Blocking send

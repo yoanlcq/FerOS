@@ -31,6 +31,7 @@ qemu-system := qemu-system-i386 $(strip \
 	-name $(os_name) \
 	-serial file:logs/serial.log \
 	-serial stdio \
+	-d guest_errors \
 )
 # ^ Redirect Guest COM1 to log file, and guest COM2 to stdio
 
@@ -42,13 +43,18 @@ gdbflags := $(strip \
 	-ex "target remote :1234" \
 )
 gccflags  := $(strip \
-	-std=c11 -Wall -Wextra -Werror -Iinclude \
-	-ffreestanding -Og -nostdlib -g -ggdb \
+	-std=gnu11 -Wall -Wextra -Werror -Iinclude \
+	-ffreestanding -Os -nostdlib -g -ggdb \
 	-fno-builtin -nostartfiles -nodefaultlibs -fno-exceptions \
 	-fno-stack-protector -static -fno-pic \
 	-masm=intel \
-	-DQEMU_GUEST \
+	-DIS_QEMU_GUEST=1 \
+	-DWANTS_VIDEOMODE=1 \
+	-DVIDEOMODE_WIDTH=800 \
+	-DVIDEOMODE_HEIGHT=600 \
+	-DVIDEOMODE_DEPTH=32 \
 )
+gcc_c_only_flags := -include __prelude.h
 asflags := $(strip \
 	-g --gstabs+ -L --fatal-warnings -Iinclude \
 	-msyntax=intel -mmnemonic=intel -mnaked-reg \
@@ -98,8 +104,8 @@ build/%.S.o: src/%.S
 
 build/%.c.o: src/%.c
 	@mkdir -p $(@D)
-	$(gcc) $(gccflags) -c $< -o $@
-	$(gcc) $(gccflags) -S $< -o $@.S
+	$(gcc) $(gccflags) $(gcc_c_only_flags) -c $< -o $@
+	$(gcc) $(gccflags) $(gcc_c_only_flags) -S $< -o $@.S
 	$(objdump) --disassemble-all --prefix-addresses $@ > $@.dump
 
 
@@ -112,15 +118,15 @@ mrproper: clean all
 
 .PHONY: run run-release run-suspended
 run-release: all
-	@mkdir logs
+	@mkdir -p logs
 	$(qemu-system) -cdrom $(iso)
 run: all
-	@mkdir logs
+	@mkdir -p logs
 	$(qemu-system) -gdb tcp::1234 -cdrom $(iso)
 dbg: all
 	$(gdb) $(gdbflags)
 run-dbg: all
-	@mkdir logs
+	@mkdir -p logs
 	$(qemu-system) -S -gdb tcp::1234 -cdrom $(iso) &
 	$(gdb) $(gdbflags) -ex "continue"
 

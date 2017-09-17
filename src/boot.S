@@ -6,20 +6,32 @@
 #include <macros.S>
 #include <multiboot.h>
 
+
 	.set mbh_magic,			0x1BADB002
-	.set mbh_flags,			(MULTIBOOT_PAGE_ALIGN | MULTIBOOT_MEMORY_INFO)
+#ifdef WANTS_VIDEOMODE /* Defined at build-time, in the Makefile */
+	.set mbh_flags,			(MB_PAGE_ALIGN | MB_MEMORY_INFO | MB_VIDEO_MODE)
+#else
+	.set mbh_flags,			(MB_PAGE_ALIGN | MB_MEMORY_INFO)
+#endif
 	.set mbh_checksum,		-(mbh_magic + mbh_flags)
-	/* The following are only used if the MULTIBOOT_AOUT_KLUDGE flag is set. */
+	/* The following are only used if the MB_AOUT_KLUDGE flag is set. */
 	.set mbh_header_addr,	0
 	.set mbh_load_addr,		0
 	.set mbh_load_end_addr, 0
 	.set mbh_bss_end_addr,	0
 	.set mbh_entry_addr,	0
-	/* The following are only used if the MULTIBOOT_VIDEO_MODE flag is set. */
+	/* 
+	 * The following are only used if the MB_VIDEO_MODE flag is set.
+	 * mbh_mode_type: 1 => Text mode, 0 => Linear graphics mode.
+	 *                The Multiboot spec says it's only a hint.
+	 * mbh_width|height: Could be 1024x768, but I'd rather have it fit in 
+	 *                   my desktop...
+	 * The VIDEOMODE_* constants are defined at build-time, in the Makefile.
+	 */
 	.set mbh_mode_type,		0
-	.set mbh_width,			1024
-	.set mbh_height,		768
-	.set mbh_depth,			32
+	.set mbh_width,			VIDEOMODE_WIDTH
+	.set mbh_height,		VIDEOMODE_HEIGHT
+	.set mbh_depth,			VIDEOMODE_DEPTH
 	
 	.section .multiboot
 	.balign 32
@@ -48,7 +60,7 @@ stack_top:
 	mov		esp, stack_top
 	mov		ebp, stack_top
 
-	# Reset EFLAGS
+	# Reset EFLAGS (also sets DF to 0)
 	pushd	0
 	popf
 
