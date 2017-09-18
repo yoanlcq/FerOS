@@ -7,19 +7,26 @@
 #include <multiboot.h>
 
 
+/* We set the MB_AOUT_KLUDGE flag because it allows us to specify
+ * exactly the representation of our kernel image. Otherwise,
+ * we'd get crashes because the bootloader wouldn't load
+ * code that is past 4 KiB since the beginning of the `.text` section.
+ */
 	.set mbh_magic,			0x1BADB002
 #ifdef WANTS_VIDEOMODE /* Defined at build-time, in the Makefile */
-	.set mbh_flags,			(MB_PAGE_ALIGN | MB_MEMORY_INFO | MB_VIDEO_MODE)
+	.set mbh_flags,			(MB_PAGE_ALIGN | MB_MEMORY_INFO | MB_AOUT_KLUDGE | MB_VIDEO_MODE)
 #else
-	.set mbh_flags,			(MB_PAGE_ALIGN | MB_MEMORY_INFO)
+	.set mbh_flags,			(MB_PAGE_ALIGN | MB_MEMORY_INFO | MB_AOUT_KLUDGE)
 #endif
 	.set mbh_checksum,		-(mbh_magic + mbh_flags)
 	/* The following are only used if the MB_AOUT_KLUDGE flag is set. */
+/* Set by linker, see `src/elf.ld`
 	.set mbh_header_addr,	0
 	.set mbh_load_addr,		0
 	.set mbh_load_end_addr, 0
 	.set mbh_bss_end_addr,	0
 	.set mbh_entry_addr,	0
+*/
 	/* 
 	 * The following are only used if the MB_VIDEO_MODE flag is set.
 	 * mbh_mode_type: 1 => Text mode, 0 => Linear graphics mode.
