@@ -1,11 +1,8 @@
+// Welp not much here right now... Maybe matrices and stuff later on ?
+
 #pragma once
 
-typedef struct {
-    u8 x;
-    u8 y;
-} Vec2_u8;
-
-static inline Vec2_u8 Vec2_u8_new(u8 x, u8 y) {
-    return (Vec2_u8) { .x = x, .y = y };
-}
+typedef __m128i Vec4i;
+typedef __m128  Vec4f;
+typedef __m128d Vec2d;
 

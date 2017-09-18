@@ -4,115 +4,95 @@
 #include <cvt.h>
 
 // TODO: Document our stuff and have a proper FAQ
+// TODO: See how to switch freely between Text mode and any VBE mode
+// TODO: Set up the IDT
 // TODO: Be able to format hex (and any base really)
-// TODO: Log the multiboot info structure, especially the `vbe_` fields
-// TODO: Use _rdtsc() from <x86intrin.h>
-// TODO: Tell QEMU to use an ia32 CPU which supports SSE and SSE2 (-cpu, -cpu help)
+// TODO: Implement malloc();
+// TODO: Implement multi-threading;
+// TODO: Have more control over our graphics device (and screen)
+// TODO: Audio ?
+// TODO: Keyboard
+// TODO: Mouse
 // TODO: Move on to x86_64 !
-
-static void setup_subsystems() {
-    log_setup();
-}
-static void shutdown_subsystems() {
-    log_shutdown();
-}
 
 static void do_textmode_stuff(const MultibootInfo *mbi) {
 
     (void)mbi;
 
-    auto vgapos = Vec2_u8_new(0, 0);
+    VgaCursor cursor = {0};
     vga_clear();
-    vga_set_cursor(vgapos);
+    vga_set_cursor(cursor);
 
-    vga_puts_logd(vgapos, "Looks like we only got a text mode. Welp...", VgaWhite, VgaBlack);
-    vgapos.y += 2;
-    vga_puts_logd(vgapos, "Hello, kernel world! Have a rainbow.", VgaLightGreen, VgaBlack);
-    vgapos.y += 1;
+    vga_puts_logd(cursor, "Looks like we only got a text mode. Welp...", VgaWhite, VgaBlack);
+    cursor.y += 2;
+    vga_puts_logd(cursor, "Hello, kernel world! Have a rainbow.", VgaLightGreen, VgaBlack);
+    cursor.y += 1;
 
     const VgaColor rainbow[] = { VgaRed, VgaBrown, VgaGreen, VgaCyan, VgaBlue, VgaMagenta };
     for(usize i=0 ; i<countof(rainbow) ; ++i) {
-        vga_puts(vgapos, " ", VgaWhite, rainbow[i]);
-        vgapos.x += 1;
+        vga_puts(cursor, " ", VgaWhite, rainbow[i]);
+        cursor.x += 1;
     }
 
-    vgapos.x = 0;
-    vgapos.y += 1;
-    vga_set_cursor(vgapos);
+    cursor.x = 0;
+    cursor.y += 1;
+
+    vga_set_cursor(cursor);
 }
 
 static void do_rgbmode_stuff(const MultibootInfo *mbi) {
-    // TODO Implement accelerated mouse cursor
-    let fb = mbi->framebuffer;
-    let w = fb.width;
-    let h = fb.height;
-    let bpp = fb.bpp;
-    let fbmem = (u8*) (uptr) fb.addr;
+    let fb = &mbi->framebuffer;
+    let w = fb->width;
+    let h = fb->height;
+    let bpp = fb->bpp;
+    let fbmem = (u8*) (uptr) fb->addr;
 
-    // NOTE: Well APPARENTLY we can't log `fb.addr` because it makes the
-    // VM crash and I can't seem to diagnose it.
-    // Is it because it's an u64 ?
-    //
-    // FIXME: So actually it looks like we're running out of space for
-    // storing our code. Perhaps we need to pull more data from the drive ?
-    // OR it's possible that our `.text` section got heavier than the 4K
-    // claimed by `elf.ld`.
     logd(
         "Entered RGB mode (", w, "x", h, "x", bpp, "); "
-        "addr = ", fb.addr, ", " "pitch = ", fb.pitch, "."
+        "addr = ", fb->addr, ", " "pitch = ", fb->pitch, "."
     );
-    logd("r_bits_offset = ", fb.r_bits_offset, ";");
-    logd("r_num_bits    = ", fb.r_num_bits   , ";");
-    logd("g_bits_offset = ", fb.g_bits_offset, ";");
-    logd("g_num_bits    = ", fb.g_num_bits   , ";");
-    logd("b_bits_offset = ", fb.b_bits_offset, ";");
-    logd("b_num_bits    = ", fb.b_num_bits   , ";");
+    logd("r_bits_offset = ", fb->r_bits_offset, ";");
+    logd("r_num_bits    = ", fb->r_num_bits   , ";");
+    logd("g_bits_offset = ", fb->g_bits_offset, ";");
+    logd("g_num_bits    = ", fb->g_num_bits   , ";");
+    logd("b_bits_offset = ", fb->b_bits_offset, ";");
+    logd("b_num_bits    = ", fb->b_num_bits   , ";");
 
-    // u32 r_mask = (1<<fb.r_num_bits)-1;
-    for(usize i=0 ; i<w*h ; ++i) {
-        *(fbmem + (i*(bpp/8)+fb.r_bits_offset/8)) = 0xff;
-        *(fbmem + (i*(bpp/8)+fb.g_bits_offset/8)) = 0xff;
-        *(fbmem + (i*(bpp/8)+fb.b_bits_offset/8)) = 0x00;
+    // TODO Possible bpps to handle: 8 15 16 24 32
+    // Today it's 32.
+
+    for(usize frame_i=0 ; ; ++frame_i) {
+        usize off = frame_i*4;
+        let t_start = _rdtsc();
+        for(usize y=0 ; y<h ; ++y) {
+            for(usize x=0 ; x<w ; ++x) {
+                fbmem[y*fb->pitch + x*(bpp/8) + fb->r_bits_offset/8] = 0xff*(((x+off)%w)/(float)w);
+                fbmem[y*fb->pitch + x*(bpp/8) + fb->g_bits_offset/8] = 0xff*(((y+off)%h)/(float)h);
+                fbmem[y*fb->pitch + x*(bpp/8) + fb->b_bits_offset/8] = 0xff/**((x+y)/(float)(w+h))*/;
+            }
+        }
+        let t_end = _rdtsc();
+        logd("Frame ", frame_i, " filled within ", (t_end - t_start), " cycles.");
     }
 }
 
-void main(u32 mb_magic, MultibootInfo *mbi) {
-
-    setup_subsystems();
-
-    logd("Build ", __TIMESTAMP__);
-    logd("Hello host!");
-
-    bool has_framebuffer = !!(mbi->flags & (1<<12));
-
-    if(mb_magic != MB_BOOTLOADER_MAGIC) {
-        auto vgapos = Vec2_u8_new(0, 0);
-        let msg = "Invalid multiboot bootloader magic value!";
-        if(has_framebuffer
-        && mbi->framebuffer.type == MB_FRAMEBUFFER_TYPE_EGA_TEXT) {
-            vga_puts_logd(vgapos, msg, VgaLightRed, VgaBlack);
-        } else {
-            logd(msg);
-        }
-        return;
-    }
-
+void main(const MultibootInfo *mbi) {
     logd("Multiboot info flags = ", mbi->flags);
 
-    if(mbi->flags & (1<<0)) {
+    if(mbi->flags & MB_INFO_MEMORY) {
         logd("Mem: lower = ", mbi->mem.lower, "KB"
                 ", upper = ", mbi->mem.upper, "KB");
     }
 
-    if(mbi->flags & (1<<1)) {
+    if(mbi->flags & MB_INFO_BOOTDEV) {
         logd("Boot device = ", mbi->boot_device);
     }
 
-    if(mbi->flags & (1<<2)) {
+    if(mbi->flags & MB_INFO_CMDLINE) {
         logd("cmdline = ", (char*) mbi->cmdline);
     }
 
-    if(mbi->flags & (1<<3)) {
+    if(mbi->flags & MB_INFO_MODS) {
         logd("Mods: count = ", mbi->mods.count, ", addr = ", mbi->mods.addr);
         auto mod = (MultibootModList*) mbi->mods.addr;
         for(usize i = 0 ; i < mbi->mods.count ; i++, mod++) {
@@ -123,16 +103,16 @@ void main(u32 mb_magic, MultibootInfo *mbi) {
         }
     }
 
-    if((mbi->flags & (1<<4)) && (mbi->flags & (1<<5))) {
+    if((mbi->flags & MB_INFO_AOUT_SYMS) && (mbi->flags & MB_INFO_ELF_SHDR)) {
         logd(
             "Both bits 4 and 5 are set, which is WRONG OMG. "
             "We can't be both AOUT and ELF! "
-            "We are always expected to be ELF anyway."
+            "We are always expected to be an ELF image anyway."
         );
         // We could abort here
     }
 
-    if(mbi->flags & (1<<5)) {
+    if(mbi->flags & MB_INFO_ELF_SHDR) {
         let es = &(mbi->elf_sec);
         logd(
             "Multiboot ELF section header table: "
@@ -141,8 +121,7 @@ void main(u32 mb_magic, MultibootInfo *mbi) {
         );
     }
 
-    /* Are mmap_* valid? */
-    if(mbi->flags & (1<<6)) {
+    if(mbi->flags & MB_INFO_MEM_MAP) {
         logd("Mmap: addr = ", mbi->mmap.addr, ", length = ", mbi->mmap.length);
 
         auto mmap = (MultibootMmapEntry*) mbi->mmap.addr;
@@ -166,11 +145,21 @@ void main(u32 mb_magic, MultibootInfo *mbi) {
             mmap = (MultibootMmapEntry*) (((uptr)mmap) + mmap->size + sizeof mmap->size);
         }
     }
-    if(mbi->flags & 1<<9) {
+    if(mbi->flags & MB_INFO_BOOT_LOADER_NAME) {
         logd("The bootloader is \"", (const char*) (uptr) mbi->boot_loader_name, "\"");
     }
 
-    if(has_framebuffer) {
+    if(mbi->flags & MB_INFO_VBE_INFO) {
+        logd("VBE mode info:");
+        logd("- control_info  = ", mbi->vbe.control_info );
+        logd("- mode_info     = ", mbi->vbe.mode_info    );
+        logd("- mode          = ", mbi->vbe.mode         );
+        logd("- interface.seg = ", mbi->vbe.interface.seg);
+        logd("- interface.off = ", mbi->vbe.interface.off);
+        logd("- interface.len = ", mbi->vbe.interface.len);
+    }
+
+    if(mbi->flags & MB_INFO_FRAMEBUFFER_INFO) {
         switch(mbi->framebuffer.type) {
         case MB_FRAMEBUFFER_TYPE_INDEXED:
             logd("The framebuffer is in indexed format (we can't handle it yet!).");
@@ -190,5 +179,4 @@ void main(u32 mb_magic, MultibootInfo *mbi) {
     } else {
         logd("We've haven't got a framebuffer!");
     }
-    shutdown_subsystems();
 }

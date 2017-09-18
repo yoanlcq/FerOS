@@ -1,5 +1,3 @@
-// TODO Mention this in the FAQ
-
 // The prelude is implicitly #include-d in all source files, using
 // GCC's `-include __prelude.h`.
 // The intent is quite the same as Rust's prelude.
@@ -40,7 +38,7 @@
 
 // Also in general we pretty much assume C11 throughout the code.
 #if __STDC_VERSION__ < 201112L
-#error "_Generic is only avaliable with the C11 standard. Try with -std=c11."
+#error "_Generic is only available with the C11 standard. Try with -std=c11."
 #endif
 
 // And we pretty much assume GNU C because of its cool extensions
@@ -75,15 +73,22 @@
  *     AssemblerTemplate asm_endl
  *     : OutputOperands [ : InputOperands [ : Clobbers ] ]
  * )
+ *
+ * `volatile` informs GCC that there are side effects not implied by
+ * the output, input and clobbers. Generally `volatile` is fine and the
+ * safest bet, but it might prevent some optimizations.
  */
 #define asm __asm__
 #define asm_endl "\n\t"
 
 #define c_attr(...) __attribute__((__VA_ARGS__))
+// Super cool when warnings are errors!
+#define TODO c_attr(warning("This is not implemented yet!"))
 #define inline_always inline c_attr(always_inline)
+// Also don't be tempted to define `always_inline` as well - won't work.
 #define typeof __typeof__
-#define auto __auto_type
-#define let const auto
+#define auto __auto_type // So modern omg
+#define let const auto   // Such Rust, much safe, wow
 
 
 // Define our more strongly-typed bool type. Without the explicit casts to
@@ -94,6 +99,7 @@
 #define _STDBOOL_H // Silently prevent inclusions of <stdbool.h>
 #define __bool_true_false_are_defined 1
 
+// These guys are annoying to type
 typedef signed char schar;
 typedef unsigned char uchar;
 typedef unsigned short ushort;
@@ -185,6 +191,8 @@ static_assert(CHAR_MAX == SCHAR_MAX, "We expect char to be signed!");
 // a `_Generic` (it only matches `signed int`).
 // I'm pretty certain I don't have the bigger picture in mind, but I don't
 // care that much, I just want to get stuff working and move on.
+//
+// We'll have to conditionally change some of this stuff when we move to x64.
 #define def_generic_over_primitives(each,x) (_Generic((x), \
     bool                : each(bool), \
     char                : each(char), \
@@ -211,22 +219,63 @@ static_assert(CHAR_MAX == SCHAR_MAX, "We expect char to be signed!");
     (def_generic_over_primitives(each,x)(&(x)))
 
 
+// The MAP() macro for applying a macro to variable arguments.
+// It somewhat ought to be part of standard C, IMO (or implemented in compilers).
+// Well except for the screen flooding part when you make the slightest mistake.
+#include <__map_macro.h>
+
+
+#include <log.h>
+// Define the super-fresh assert_cmp() macro.
+//
+// It's able to assert that a given comparison holds true for two operands,
+// pretty-printing both of them if it doesn't.
+//
+// "Behold the power of C11."
+#ifdef NDEBUG
+#define assert_cmp(lhs, cmp, rhs, msg)
+#else
+#define assert_cmp(lhs, cmp, rhs, msg) do { \
+    /* Expand the expressions only once */ \
+    let _lhs = lhs; \
+    let _rhs = rhs; \
+    if(!(_lhs cmp _rhs)) { \
+        logd_( \
+            "\n=== ASSERTION FAILED ===\n" \
+            "(", msg, ")\n" \
+            "In ", __FILE__, ":", __LINE__, ", in function ", __func__, ":\n" \
+            "Expected...\n" \
+            "    `", #lhs, " ", #cmp, " ", #rhs, "`\n" \
+            "... But :\n" \
+            "lhs = ", _lhs, "; (", #lhs, ")\n" \
+            "rhs = ", _rhs, "; (", #rhs, ")\n", \
+            "\nAborting.\n" \
+            "========================\n" \
+        ); \
+        abort(); \
+    } \
+} while(0)
+#endif
+
+
+// They both need the TO-DO macro and are included by <mm_malloc.h>
+// itself included in <x86intrin.h>.
+// They both can use the standard types like `int` and `size_t`.
+#include <stdlib.h>
+#include <errno.h>
+
 //
 // Hardware intrinsics
 //
 
-// _MM_MALLOC_H_INCLUDED: Hack, because we don't have malloc() yet, 
-// and we don't have <errno.h> either.
-#define _MM_MALLOC_H_INCLUDED 
 #include <x86intrin.h>
 #include <cpuid.h>
-#undef _MM_MALLOC_H_INCLUDED 
 
 //
 // Inhibit types.
 //
 // We do this at the very end, after any other "standard" header.
-// This is only to enforce consistency through the project.
+// This is only to enforce consistency throughout the codebase.
 //
 // char is still allowed because "char*" is, and always will be, a
 // null-terminated string (ASCII or UTF-8).
@@ -245,7 +294,8 @@ static_assert(CHAR_MAX == SCHAR_MAX, "We expect char to be signed!");
 #define int32_t   dont_use__superseded_by_i32
 #define int64_t   dont_use__superseded_by_i64
 #define __int128  dont_use__superseded_by_i128
-// Commented to allow literals as generics
+#define __float128  dont_use__superseded_by_f128
+// Commented out to allow literals as generics
 // #define int       dont_use__imprecise_type
 // #define long      dont_use__imprecise_type
 // #define short     dont_use__imprecise_type
@@ -254,14 +304,10 @@ static_assert(CHAR_MAX == SCHAR_MAX, "We expect char to be signed!");
 // #define wchar_t   dont_use__superseded_by_wchar
 
 
+
 //
 // Our own intrinsics
 //
-
-
-static inline_always void hlt() {
-    asm volatile ("hlt" asm_endl);
-}
 
 
 // memset-like intrinsics
@@ -269,28 +315,28 @@ static inline_always void hlt() {
 // From Intel's instruction set manual:
 //     "Note that a REP STOS instruction is the fastest way to initialize a
 //     large block of memory."
-// Whether it's true or not, it's interesting to implement.
+// True or not, it's interesting to implement.
 
-static inline void stosb(u8 *dst, u8 value, u32 count) {
+static inline_always void stosb(u8 *dst, u8 value, u32 count) {
     asm volatile (
         "rep stosb" asm_endl // "Fill (E)CX bytes at ES:[(E)DI] with AL".
         : : "D"(dst), "c"(count), "a"(value) : "memory"
     );
 }
-static inline void stosw(u16 *dst, u16 value, u32 count) {
+static inline_always void stosw(u16 *dst, u16 value, u32 count) {
     asm volatile (
         "rep stosw" asm_endl // "Fill (E)CX bytes at ES:[(E)DI] with AX".
         : : "D"(dst), "c"(count), "a"(value) : "memory"
     );
 }
-static inline void stosd(u32 *dst, u32 value, u32 count) {
+static inline_always void stosd(u32 *dst, u32 value, u32 count) {
     asm volatile (
         "rep stosd" asm_endl // "Fill (E)CX bytes at ES:[(E)DI] with EAX".
         : : "D"(dst), "c"(count), "a"(value) : "memory"
     );
 }
 #if 0 // defined(targets_x64)
-static inline void _stosq(u64 *dst, u64 value, u64 count) {
+static inline_always void stosq(u64 *dst, u64 value, u64 count) {
     asm volatile (
         "rep stosq" asm_endl // "Fill RCX bytes at [RDI] with RAX".
         : : "rdi"(dst), "rcx"(count), "rax"(value) : "memory"
@@ -299,7 +345,31 @@ static inline void _stosq(u64 *dst, u64 value, u64 count) {
 #endif
 
 //
-// I/O-Ports intrinsics
+// memcpy()-like intrinsics
+//
+
+static inline_always void movsb(u8 *dst, const u8* src, u32 count) {
+    asm volatile (
+        "rep movsb" asm_endl // Move ECX bytes from DS:[ESI] to ES:[EDI].
+        : : "D"(dst), "S"(src), "c"(count) : "memory"
+    );
+}
+static inline_always void movsw(u16 *dst, const u16* src, u32 count) {
+    asm volatile (
+        "rep movsw" asm_endl // Move ECX words from DS:[ESI] to ES:[EDI].
+        : : "D"(dst), "S"(src), "c"(count) : "memory"
+    );
+}
+static inline_always void movsd(u32 *dst, const u32* src, u32 count) {
+    asm volatile (
+        "rep movsd" asm_endl // Move ECX doublewords from DS:[ESI] to ES:[EDI].
+        : : "D"(dst), "S"(src), "c"(count) : "memory"
+    );
+}
+
+
+//
+// I/O Ports intrinsics
 //
 // Some random notes:
 //
@@ -316,12 +386,12 @@ static inline void _stosq(u64 *dst, u64 value, u64 count) {
 // This calls for a hexdump.
 
 // For `outs*`:
-// XXX Not setting the value of DS. Might be bad.
-// NOTE: Not emitting a `cld` instruction, because we assume GCC keeps it cleared.
-// NOTE: The actual source address is DS:ESI in 32-bit mode for `outs`.
-// NOTE: The actual source address is DS:EDI in 32-bit mode for `ins`.
-// NOTE: Setting DF to zero (`cld`) ensure the counter moves forward.
-// NOTE: `count` really is the number of _items_, NOT the size in bytes.
+// - Not emitting a `cld` instruction, because we assume GCC keeps it cleared
+//   (it appears to be the case, as mentioned in a StackOverflow answer).
+//   Keeping DF to zero (`cld`) ensures the counter moves forward.
+// - The actual source address is DS:ESI in 32-bit mode for `outs`.
+// - The actual source address is DS:EDI in 32-bit mode for `ins`.
+// - `count` really is the number of _items_, NOT the size in bytes.
 
 static inline_always void outsb(u16 port, const u8* data, usize count) {
     asm volatile (
@@ -364,21 +434,22 @@ static inline_always void insd(u16 port, u32* data, usize count) {
 static inline_always void outb(u16 port, u8 data) {
     asm volatile (
         "out dx, al" asm_endl
-        : : "d"(port), "a"(data)
+        : : "Nd"(port), "a"(data)
     );
 }
 
 static inline_always void outw(u16 port, u16 data) {
     asm volatile (
         "out dx, ax" asm_endl
-        : : "d"(port), "a"(data)
+        : : "Nd"(port), "a"(data)
     );
 }
 
+// osdev.org says that the traditional name would be `outl`.
 static inline_always void outd(u16 port, u32 data) {
     asm volatile (
         "out dx, eax" asm_endl
-        : : "d"(port), "a"(data)
+        : : "Nd"(port), "a"(data)
     );
 }
 
@@ -386,7 +457,7 @@ static inline_always u8 inb(u16 port) {
     u8 data;
     asm volatile (
         "in al, dx" asm_endl
-        : "=a"(data) : "d"(port)
+        : "=a"(data) : "Nd"(port)
     );
     return data;
 }
@@ -395,54 +466,82 @@ static inline_always u16 inw(u16 port) {
     u16 data;
     asm volatile (
         "in ax, dx" asm_endl
-        : "=a"(data) : "d"(port)
+        : "=a"(data) : "Nd"(port)
     );
     return data;
 }
 
+// osdev.org says that the traditional name would be `inl`.
 static inline_always u32 ind(u16 port) {
     u32 data;
     asm volatile (
         "in eax, dx" asm_endl
-        : "=a"(data) : "d"(port)
+        : "=a"(data) : "Nd"(port)
     );
     return data;
 }
 
 
+// Get/Set Control Register intrinsics
+// e.g `get_cr0()` and `set_cr0()`
+#define def_getset_cr(x) \
+static inline_always u32 get_cr##x() { \
+    u32 val; \
+    asm volatile ( \
+        "mov %0, cr" #x asm_endl \
+        : "=r"(val) \
+    ); \
+    return val; \
+} \
+static inline_always void set_cr##x(u32 val) { \
+    asm volatile ( \
+        "mov cr" #x ", %0" asm_endl \
+        : : "r"(val) \
+    ); \
+}
+def_getset_cr(0)
+def_getset_cr(1)
+def_getset_cr(2)
+def_getset_cr(3)
+def_getset_cr(4)
+def_getset_cr(5)
+def_getset_cr(6)
+def_getset_cr(7)
+#undef def_getset_cr
+
+static inline_always void hlt() {
+    asm volatile ("hlt" asm_endl);
+}
 
 
 //
 // Functions intended to be portable and universally useful
 //
 
-static inline void memset     (void *mem, u8  value, usize size ) { stosb((void*)mem, value, size ); }
-static inline void memset_u8  (u8   *mem, u8  value, usize count) { stosb((void*)mem, value, count); }
-static inline void memset_i8  (i8   *mem, i8  value, usize count) { stosb((void*)mem, value, count); }
-static inline void memset_u16 (u16  *mem, u16 value, usize count) { stosw((void*)mem, value, count); }
-static inline void memset_i16 (i16  *mem, i16 value, usize count) { stosw((void*)mem, value, count); }
-static inline void memset_u32 (u32  *mem, u32 value, usize count) { stosd((void*)mem, value, count); }
-static inline void memset_i32 (i32  *mem, i32 value, usize count) { stosd((void*)mem, value, count); }
-static inline void zero     (void *mem, usize size ) { memset    (mem, 0, size ); }
-static inline void zero_u8  (u8   *mem, usize count) { memset_u8 (mem, 0, count); }
-static inline void zero_u16 (u16  *mem, usize count) { memset_u16(mem, 0, count); }
-static inline void zero_u32 (u32  *mem, usize count) { memset_u32(mem, 0, count); }
-static inline void zero_i8  (i8   *mem, usize count) { memset_i8 (mem, 0, count); }
-static inline void zero_i16 (i16  *mem, usize count) { memset_i16(mem, 0, count); }
-static inline void zero_i32 (i32  *mem, usize count) { memset_i32(mem, 0, count); }
-
+// Halt the CPU. Could just be implemented with `for(;;);`, but is
+// intended to save power.
 static inline noreturn void hang() { for(;;) hlt(); }
-static inline noreturn void abort() { hang(); }
-static inline noreturn void exit(i32 code) {
-    (void)code; // What to do ? Move to EAX ? Or call logd() ?
-    hang();
-}
 
-// The MAP() macro for applying a macro to variable arguments.
-// It should somewhat be part of standard C, IMO.
-// Well except for the screen flooding part for the slightest mistake.
-#include <__map_macro.h>
-
-// Include last, needs abort()
-#include <__assert.h>
+// WISH: Now we have SSE, we might as well write "memcpy_sse" functions
+static inline void memset     (void *mem, u8  value, usize size ) { stosb(      mem, value, size ); }
+static inline void memset_u8  (u8   *mem, u8  value, usize count) { stosb((u8 *)mem, value, count); }
+static inline void memset_i8  (i8   *mem, i8  value, usize count) { stosb((u8 *)mem, value, count); }
+static inline void memset_u16 (u16  *mem, u16 value, usize count) { stosw((u16*)mem, value, count); }
+static inline void memset_i16 (i16  *mem, i16 value, usize count) { stosw((u16*)mem, value, count); }
+static inline void memset_u32 (u32  *mem, u32 value, usize count) { stosd((u32*)mem, value, count); }
+static inline void memset_i32 (i32  *mem, i32 value, usize count) { stosd((u32*)mem, value, count); }
+static inline void zero       (void *mem, usize size ) { memset    (mem, 0, size ); }
+static inline void zero_u8    (u8   *mem, usize count) { memset_u8 (mem, 0, count); }
+static inline void zero_u16   (u16  *mem, usize count) { memset_u16(mem, 0, count); }
+static inline void zero_u32   (u32  *mem, usize count) { memset_u32(mem, 0, count); }
+static inline void zero_i8    (i8   *mem, usize count) { memset_i8 (mem, 0, count); }
+static inline void zero_i16   (i16  *mem, usize count) { memset_i16(mem, 0, count); }
+static inline void zero_i32   (i32  *mem, usize count) { memset_i32(mem, 0, count); }
+static inline void memcpy     (void *dst, const u8  *src, usize size ) { movsb(      dst,       src, size ); }
+static inline void memcpy_u8  (u8   *dst, const u8  *src, usize count) { movsb((u8 *)dst, (u8 *)src, count); }
+static inline void memcpy_i8  (i8   *dst, const i8  *src, usize count) { movsb((u8 *)dst, (u8 *)src, count); }
+static inline void memcpy_u16 (u16  *dst, const u16 *src, usize count) { movsw((u16*)dst, (u16*)src, count); }
+static inline void memcpy_i16 (i16  *dst, const i16 *src, usize count) { movsw((u16*)dst, (u16*)src, count); }
+static inline void memcpy_u32 (u32  *dst, const u32 *src, usize count) { movsd((u32*)dst, (u32*)src, count); }
+static inline void memcpy_i32 (i32  *dst, const i32 *src, usize count) { movsd((u32*)dst, (u32*)src, count); }
 

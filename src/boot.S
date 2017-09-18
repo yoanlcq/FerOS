@@ -65,15 +65,21 @@ stack_top:
 .fn _start
 	# Initialize stack pointer
 	mov		esp, stack_top
-	mov		ebp, stack_top
+	mov		ebp, stack_top	# Not strictly needed, but convenient
 
 	# Reset EFLAGS (also sets DF to 0)
 	pushd	0
 	popf
+	
+	push	ebx		# 32-bit physical address to Multiboot information structure
+	push	eax		# Must contain Multiboot info magic, 0x2BADBOO2
+	call	__init
 
-	push	ebx # 32-bit physical address to Multiboot information structure
-	push	eax # Must contain 0x2BADBOO2
-	call	main
+	pop		eax		# Pop 0x2BADBOO2
+	call	main	# main(mb_info_ptr)
+	pop		ebx		# Pop pointer to Multiboot info
+
+	call	__deinit
 
 	cli
 .L_hang:

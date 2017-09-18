@@ -53,21 +53,45 @@ typedef struct {
     u32 shndx;
 } MultibootElfSectionHeaderTable;
 
+
+
+// VESA BIOS Extensions (VBE) 3 information
+//
+// Quoting the multiboot spec:
+//
+// The fields ‘vbe_control_info’ and ‘vbe_mode_info’ contain the physical
+// addresses of vbe control information returned by the vbe Function 00h and 
+// vbe mode information returned by the vbe Function 01h, respectively.
+// 
+// The field ‘vbe_mode’ indicates current video mode in the format specified
+// in vbe 3.0.
+// 
+// The rest fields ‘vbe_interface_seg’, ‘vbe_interface_off’, and
+// ‘vbe_interface_len’ contain the table of a protected mode interface
+// defined in vbe 2.0+. If this information is not available, those fields
+// contain zero. Note that vbe 3.0 defines another protected mode interface
+// which is incompatible with the old one. If you want to use the new protected
+// mode interface, you will have to find the table yourself.
+// 
+// The fields for the graphics table are designed for vbe, but Multiboot boot
+// loaders may simulate vbe on non-vbe modes, as if they were vbe modes. 
 typedef struct {
     u32 control_info;
     u32 mode_info;
     u16 mode;
-    u16 interface_seg;
-    u16 interface_off;
-    u16 interface_len;
+    struct {
+        u16 seg;
+        u16 off;
+        u16 len;
+    } interface;
 } MultibootInfoVbe;
 
 typedef struct {
     u64 addr;
-    u32 pitch;
+    u32 pitch; // Length in bytes to skip to next pixel row
     u32 width;
     u32 height;
-    u8  bpp;
+    u8  bpp; // bits-per-pixel
 #define MB_FRAMEBUFFER_TYPE_INDEXED  0
 #define MB_FRAMEBUFFER_TYPE_RGB      1
 #define MB_FRAMEBUFFER_TYPE_EGA_TEXT 2

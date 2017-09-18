@@ -19,3 +19,9 @@ void strcpy(char *dst, const char *src) {
         *dst = *src;
     *dst = '\0';
 }
+usize strlen(const char *s) {
+    usize i;
+    for(i=0 ; s[i] ; ++i)
+        ;
+    return i;
+}

@@ -45,14 +45,16 @@ gdbflags := $(strip \
 )
 gccflags  := $(strip \
 	-std=gnu11 -Wall -Wextra -Werror -Iinclude \
-	-ffreestanding -Os -nostdlib -g -ggdb \
+	-ffreestanding -O3 -nostdlib -g -ggdb \
 	-fno-builtin -nostartfiles -nodefaultlibs -fno-exceptions \
 	-fno-stack-protector -static -fno-pic \
 	-masm=intel \
-	-DIS_QEMU_GUEST=1 \
-	-DWANTS_VIDEOMODE=1 \
-	-DVIDEOMODE_WIDTH=800 \
-	-DVIDEOMODE_HEIGHT=600 \
+	-mno-red-zone \
+	-mfxsr -mmmx -msse -msse2 -mfpmath=sse \
+	-DIS_QEMU_GUEST \
+	-DWANTS_VIDEOMODE \
+	-DVIDEOMODE_WIDTH=320 \
+	-DVIDEOMODE_HEIGHT=200 \
 	-DVIDEOMODE_DEPTH=32 \
 )
 gcc_c_only_flags := -include __prelude.h

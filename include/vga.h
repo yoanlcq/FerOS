@@ -2,6 +2,15 @@
 
 #include <vec.h>
 
+typedef struct {
+    u8 x;
+    u8 y;
+} VgaCursor;
+
+static inline VgaCursor VgaCursor_new(u8 x, u8 y) {
+    return (VgaCursor) { .x = x, .y = y };
+}
+
 typedef enum {
 	VgaBlack = 0,
 	VgaBlue = 1,
@@ -42,6 +51,6 @@ static inline VgaCell VgaCell_new(u8 ascii, VgaColor fg, VgaColor bg) {
 #define VGA_SET_CURSOR_LO_BYTE ((u8)15)
 
 void vga_clear();
-void vga_puts(Vec2_u8 position, const char *str, VgaColor fg, VgaColor bg);
-void vga_puts_logd(Vec2_u8 position, const char *str, VgaColor fg, VgaColor bg);
-void vga_set_cursor(Vec2_u8 position);
+void vga_puts(VgaCursor position, const char *str, VgaColor fg, VgaColor bg);
+void vga_puts_logd(VgaCursor position, const char *str, VgaColor fg, VgaColor bg);
+void vga_set_cursor(VgaCursor position);

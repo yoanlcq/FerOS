@@ -69,7 +69,7 @@ void logd_i8   (i8   value) { logd_i32(value); }
 void logd_i16  (i16  value) { logd_i32(value); }
 void logd_f32  (f32  value) { (void)value; }
 void logd_f64  (f64  value) { (void)value; }
-void logd_ptr  (const void* value) { logd_cptr(value); }
+void logd_ptr  (const void* value) { (void)value; }
 void logd_cptr (const void* value) { (void)value; }
 
 #endif // LOGD_PORT1
