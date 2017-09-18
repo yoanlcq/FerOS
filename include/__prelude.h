@@ -17,32 +17,39 @@
 
 #pragma once
 
-#if defined(__linux__)
+#if defined(__linux__) || defined(_WIN32) || defined(__APPLE__) \
+ || defined(__unix__) || defined(_POSIX_VERSION)
 #error "Please use a genuine cross-compiler. It's really needed."
-#endif
- 
-#if !defined(__i386__)
-#error "The kernel can only be compiled with a x86-elf compiler."
-#else
-#define targets_ia32 1
-#endif
-
-
-#if defined(__x86_64__)
-#define targets_x64 1
 #endif
 
 #if defined(__i386__) || defined(__x86_64__)
 #define targets_x86 1
 #endif
 
+#if defined(__i386__)
+#define targets_ia32 1
+#endif
+
+#if defined(__x86_64__)
+#define targets_x64 1
+#endif
+
+#if !(defined(targets_ia32) && defined(__ELF__))
+#error "The kernel can only be compiled with a x86-elf compiler."
+#endif
 
 // Also in general we pretty much assume C11 throughout the code.
 #if __STDC_VERSION__ < 201112L
-#error _Generic is only avaliable with the C11 standard. Try with -std=c11.
+#error "_Generic is only avaliable with the C11 standard. Try with -std=c11."
+#endif
+
+// And we pretty much assume GNU C because of its cool extensions
+#ifndef __GNUC__
+#error "I don't think the code is ready to support other compilers than GCC."
 #endif
 
 
+// Note that we don't include <stdbool.h>. It's on purpose, see further down.
 #include <stdalign.h>
 #include <stdarg.h>
 #include <stdatomic.h>
@@ -65,7 +72,7 @@
  * Quick reminder of inline ASM format:
  *
  * asm [volatile] (
- *     AssemblerTemplateasm_endl
+ *     AssemblerTemplate asm_endl
  *     : OutputOperands [ : InputOperands [ : Clobbers ] ]
  * )
  */
@@ -84,6 +91,8 @@
 #define bool _Bool
 #define false ((bool)0)
 #define true ((bool)1)
+#define _STDBOOL_H // Silently prevent inclusions of <stdbool.h>
+#define __bool_true_false_are_defined 1
 
 typedef signed char schar;
 typedef unsigned char uchar;
@@ -91,7 +100,9 @@ typedef unsigned short ushort;
 typedef unsigned int uint;
 typedef unsigned long ulong;
 typedef unsigned long long ullong;
+typedef long double ldouble;
 
+typedef uint32_t bool32, b32;
 typedef uint16_t char16;
 typedef uint32_t char32;
 typedef wchar_t wchar;
@@ -105,14 +116,30 @@ typedef int8_t  i8;
 typedef int16_t i16;
 typedef int32_t i32;
 typedef int64_t i64;
-typedef float f32;
-typedef double f64;
-
-typedef uint32_t bool32, b32;
-#ifdef __SIZEOF_INT128__
+#ifdef __SIZEOF_INT128__ // Not defined on unextended IA-32
 typedef          __int128 i128;
 typedef unsigned __int128 u128;
 #endif
+typedef float f32;
+typedef double f64;
+#ifdef targets_x86
+typedef long double f80;
+#else
+#error "We don't know the actual size of long double!"
+#endif
+#ifdef __SIZEOF_F128__ // Not defined on unextended IA-32
+typedef __float128 f128;
+#endif
+// NOTE: `f80` is named so because it has 80 bits of entropy,
+// BUT this doesn't mean it's the actual size it will take in structs or
+// memory in general.
+// `f80` is actually padded to take either 96 bits or 128 bits, depending on the
+// options given to GCC. See the documentation on `-m96bit-long-double`
+// and `-m128bit-long-double`.
+// 96 bits is the default because it's required by the x86 ABI, but apparently
+// 128 bits is somewhat "preferred" by modern CPUs.
+// See the `static_assert`s further down to see which size it is.
+
 
 // Assert on the size of imprecise types (they're used in generics so we
 // need to know which casts are lossless)
@@ -132,10 +159,16 @@ static_assert(sizeof(  signed long     ) == 4, "Unexpected size!");
 static_assert(sizeof(unsigned long     ) == 4, "Unexpected size!");
 static_assert(sizeof(  signed long long) == 8, "Unexpected size!");
 static_assert(sizeof(unsigned long long) == 8, "Unexpected size!");
+static_assert(sizeof(long double       ) ==12, "Unexpected size!");
+static_assert(sizeof(f80               ) ==12, "Unexpected size!");
 static_assert(sizeof(void*             ) == 4, "Unexpected size!");
 static_assert(sizeof(void*             ) == 4, "Unexpected size!");
 
+static_assert(CHAR_BIT == 8, "We expect char to be of 8 bits!");
+static_assert(CHAR_MIN == SCHAR_MIN, "We expect char to be signed!");
+static_assert(CHAR_MAX == SCHAR_MAX, "We expect char to be signed!");
 
+// countof() macro
 // NOTE: This is the naïve implementation, which doesn't perform
 // trickery to assert that the argument is a static array.
 // It's enough for me right now.
@@ -144,7 +177,15 @@ static_assert(sizeof(void*             ) == 4, "Unexpected size!");
 // C11's _Generic doesn't allow us to be more precise than that, with
 // fundamental types.
 // For instance, we can't put `wchar_t` or `isize` in here.
-#define generic_dispatch(each,x) (_Generic((x), \
+//
+// We refer to the actual standard base types instead of our typedefs because
+// literals are of these types.
+// For instance, if I remember correctly, `42` is a `signed int`, and even
+// though it's therefore also an `i32`, it doesn't match the `i32` arm in
+// a `_Generic` (it only matches `signed int`).
+// I'm pretty certain I don't have the bigger picture in mind, but I don't
+// care that much, I just want to get stuff working and move on.
+#define def_generic_over_primitives(each,x) (_Generic((x), \
     bool                : each(bool), \
     char                : each(char), \
       signed char       : each(i8), \
@@ -160,10 +201,14 @@ static_assert(sizeof(void*             ) == 4, "Unexpected size!");
     float               : each(f32), \
     double              : each(f64), \
     char*               : each(str), \
-    const char*         : each(str), \
+    const char*         : each(cstr), \
     void*               : each(ptr), \
-    const void*         : each(ptr) \
-)(x))
+    const void*         : each(cptr) \
+))
+#define def_generic_over_primitives_value(each,x) \
+    (def_generic_over_primitives(each,x)(x))
+#define def_generic_over_primitives_addr(each,x) \
+    (def_generic_over_primitives(each,x)(&(x)))
 
 
 //

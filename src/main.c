@@ -3,7 +3,8 @@
 #include <log.h>
 #include <cvt.h>
 
-// TODO: Improve `assert_cmp()` so that it's able to properly format operands and display them
+// TODO: Document our stuff and have a proper FAQ
+// TODO: Be able to format hex (and any base really)
 // TODO: Log the multiboot info structure, especially the `vbe_` fields
 // TODO: Use _rdtsc() from <x86intrin.h>
 // TODO: Tell QEMU to use an ia32 CPU which supports SSE and SSE2 (-cpu, -cpu help)
@@ -69,11 +70,9 @@ static void do_rgbmode_stuff(const MultibootInfo *mbi) {
 
     // u32 r_mask = (1<<fb.r_num_bits)-1;
     for(usize i=0 ; i<w*h ; ++i) {
-        *(fbmem + (i*(bpp/8)+fb.g_bits_offset/8)) = 0xff;
-        /*
         *(fbmem + (i*(bpp/8)+fb.r_bits_offset/8)) = 0xff;
-        *(fbmem + (i*(bpp/8)+fb.b_bits_offset/8)) = 0xff;
-        */
+        *(fbmem + (i*(bpp/8)+fb.g_bits_offset/8)) = 0xff;
+        *(fbmem + (i*(bpp/8)+fb.b_bits_offset/8)) = 0x00;
     }
 }
 
@@ -81,12 +80,16 @@ void main(u32 mb_magic, MultibootInfo *mbi) {
 
     setup_subsystems();
 
+    logd("Build ", __TIMESTAMP__);
     logd("Hello host!");
+
+    bool has_framebuffer = !!(mbi->flags & (1<<12));
 
     if(mb_magic != MB_BOOTLOADER_MAGIC) {
         auto vgapos = Vec2_u8_new(0, 0);
         let msg = "Invalid multiboot bootloader magic value!";
-        if(mbi->framebuffer.type == MB_FRAMEBUFFER_TYPE_EGA_TEXT) {
+        if(has_framebuffer
+        && mbi->framebuffer.type == MB_FRAMEBUFFER_TYPE_EGA_TEXT) {
             vga_puts_logd(vgapos, msg, VgaLightRed, VgaBlack);
         } else {
             logd(msg);
@@ -95,9 +98,6 @@ void main(u32 mb_magic, MultibootInfo *mbi) {
     }
 
     logd("Multiboot info flags = ", mbi->flags);
-
-#if 0 // FIXME just sparing executable memory
-// ^ Should look at examples linked by the multiboot spec ?
 
     if(mbi->flags & (1<<0)) {
         logd("Mem: lower = ", mbi->mem.lower, "KB"
@@ -150,21 +150,26 @@ void main(u32 mb_magic, MultibootInfo *mbi) {
             if((uptr) mmap >= mbi->mmap.addr + mbi->mmap.length) {
                 break;
             }
-            logd(
+            logd_(
                 "size = ", mmap->size, ", "
                 "base_addr = ", mmap->addr, ", "
                 "length = ", mmap->len, ", "
-                "type = ", mmap->type
+                "type = "
             );
+            switch(mmap->type) {
+            case MB_MEMORY_AVAILABLE       : logd("Available"); break;
+            case MB_MEMORY_RESERVED        : logd("Reserved"); break;
+            case MB_MEMORY_ACPI_RECLAIMABLE: logd("ACPI reclaimable"); break;
+            case MB_MEMORY_NVS             : logd("NVS"); break;
+            case MB_MEMORY_BADRAM          : logd("Bad RAM"); break;
+            }
             mmap = (MultibootMmapEntry*) (((uptr)mmap) + mmap->size + sizeof mmap->size);
         }
     }
-#endif
     if(mbi->flags & 1<<9) {
         logd("The bootloader is \"", (const char*) (uptr) mbi->boot_loader_name, "\"");
     }
 
-    bool has_framebuffer = !!(mbi->flags & (1<<12));
     if(has_framebuffer) {
         switch(mbi->framebuffer.type) {
         case MB_FRAMEBUFFER_TYPE_INDEXED:
@@ -185,6 +190,5 @@ void main(u32 mb_magic, MultibootInfo *mbi) {
     } else {
         logd("We've haven't got a framebuffer!");
     }
-
     shutdown_subsystems();
 }

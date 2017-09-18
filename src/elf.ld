@@ -5,24 +5,24 @@ ENTRY(_start)
 SECTIONS {
 	. = 1M;
 
-	.text BLOCK(4K) : ALIGN(4K) {
-		*(.multiboot*)
+	.text ALIGN(4K) : ALIGN(4K) {
+		*(.multiboot)
 		*(.text*)
 	}
 
 	/* Read-only data (initialized) */
-	.rodata BLOCK(4K) : ALIGN(4K) {
+	.rodata ALIGN(4K) : ALIGN(4K) {
 		*(.rodata*)
 		*(.rdata*)
 	}
 
 	/* Read-write data (initialized) */
-	.data BLOCK(4K) : ALIGN(4K) {
+	.data ALIGN(4K) : ALIGN(4K) {
 		*(.data*)
 	}
 
 	/* Read-write data (uninitialized) and stack */
-	.bss BLOCK(4K) : ALIGN(4K) {
+	.bss ALIGN(4K) : ALIGN(4K) {
 		*(COMMON*)
 		*(.bss*)
 		*(.bootstrap_stack*)

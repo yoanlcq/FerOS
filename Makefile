@@ -10,7 +10,8 @@ os_name    := FerOS
 
 iso        := $(os_name).iso
 grubcfg    := isodir/boot/grub/grub.cfg
-kernel     := isodir/boot/$(os_name).elf
+iso_kernel := isodir/boot/$(os_name).elf
+kernel     := build/$(os_name).elf
 kernel_sym := build/$(os_name).sym
 kernel_dbg := build/$(os_name).dbg.elf
 
@@ -71,6 +72,7 @@ all: $(iso)
 $(kernel_dbg): src/elf.ld $(ofiles)
 	@mkdir -p $(@D)
 	$(gcc) $(gccflags) -T $< -o $@ $(ofiles) $(ldlibs)
+	$(objdump) --disassemble-all --prefix-addresses $@ > $@.dump
 
 $(kernel_sym): $(kernel_dbg)
 	@mkdir -p $(@D)
@@ -80,14 +82,21 @@ $(kernel): $(kernel_dbg) $(kernel_sym)
 	@mkdir -p $(@D)
 	$(objcopy) --strip-all $< $@
 	grub-file --is-x86-multiboot $@ # Check that our kernel is multiboot-compliant
+	$(objdump) --disassemble-all --prefix-addresses $@ > $@.dump
 
 $(grubcfg): 
 	@mkdir -p $(@D)
 	echo "menuentry \"$(os_name)\" {" > $@
-	echo "    multiboot $(subst isodir,,$(kernel))" >> $@
+	echo "    multiboot /boot/$(notdir $(kernel))" >> $@
 	echo "}" >> $@
 
-$(iso): $(kernel) $(kernel_sym) $(grubcfg)
+$(iso_kernel): $(kernel)
+	@mkdir -p $(@D)
+	cp $< $@
+# NOTE: We can't do `ln -sf` instead of `cp` because the file wouldn't get 
+# picked up.
+
+$(iso): $(iso_kernel) $(kernel_sym) $(grubcfg)
 	@mkdir -p $(@D)
 	grub-mkrescue /usr/lib/grub/i386-pc -o $@ isodir/
 
@@ -111,7 +120,7 @@ build/%.c.o: src/%.c
 
 .PHONY: clean re mrproper
 clean:
-	rm -rf build
+	rm -rf build isodir
 re: clean all
 mrproper: clean all
 
