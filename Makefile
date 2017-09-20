@@ -11,7 +11,6 @@ os_name    := FerOS
 iso        := $(os_name).iso
 grubcfg    := isodir/boot/grub/grub.cfg
 iso_kernel := isodir/boot/$(os_name).elf
-kernel_bin := build/$(os_name).bin
 kernel_elf := build/$(os_name).elf
 kernel_sym := build/$(os_name).sym
 kernel_dbg := build/$(os_name).dbg.elf
@@ -55,10 +54,6 @@ gccflags  := $(strip \
 	-mfxsr -mmmx -msse -msse2 -mfpmath=sse \
 	-Wl,-melf_i386 \
 	-DIS_QEMU_GUEST \
-	-DWANTS_VIDEOMODE \
-	-DVIDEOMODE_WIDTH=320 \
-	-DVIDEOMODE_HEIGHT=200 \
-	-DVIDEOMODE_DEPTH=32 \
 )
 gcc_c_only_flags := -include __prelude.h
 asflags := $(strip \
@@ -71,7 +66,7 @@ ldlibs  := -lgcc
 
 
 .PHONY: all
-all: $(iso) $(kernel_bin)
+all: $(iso)
 
 
 $(kernel_dbg): src/elf.ld $(ofiles)
@@ -86,13 +81,8 @@ $(kernel_sym): $(kernel_dbg)
 $(kernel_elf): $(kernel_dbg) $(kernel_sym)
 	@mkdir -p $(@D)
 	$(objcopy) --strip-all $< $@
-	grub-file --is-x86-multiboot $@ # Check that our kernel is multiboot-compliant
+	grub-file --is-x86-multiboot $@ # Assert that our kernel is multiboot-compliant
 	$(objdump) --disassemble-all --prefix-addresses $@ > $@.dump
-
-$(kernel_bin): src/bin.ld $(ofiles)
-	@mkdir -p $(@D)
-	$(gcc) $(gccflags) -T $< -o $@ $(ofiles) $(ldlibs)
-	$(objdump) --disassemble-all --prefix-addresses -Mintel -bbinary -mi386 $@ > $@.dump
 
 $(grubcfg): 
 	@mkdir -p $(@D)
@@ -149,7 +139,3 @@ run-dbg: $(iso)
 	@mkdir -p logs
 	$(qemu-system) -S -gdb tcp::1234 -cdrom $(iso) &
 	$(gdb) $(gdbflags) -ex "continue"
-
-run-bin: $(kernel_bin)
-	@mkdir -p logs
-	$(qemu-system) -gdb tcp::1234 -kernel $(kernel_bin)

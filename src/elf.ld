@@ -17,39 +17,36 @@
 OUTPUT_FORMAT("elf32-i386")
 OUTPUT_ARCH(i386)
 ENTRY(_start)
-mbh_entry_addr = _start;
 
 SECTIONS {
 	. = 1M;
 
-	.text ALIGN(4K) : ALIGN(4K) {
-        mbh_header_addr = .;
+	.text ALIGN(4K) : AT(ADDR(.text)) {
         mbh_load_addr = .;
-		*(.multiboot)
+		build/boot.S.o(.text*)
 		*(.text*)
 	}
 
 	/* Read-only data (initialized) */
-	.rodata ALIGN(4K) : ALIGN(4K) {
+	.rodata ALIGN(4K) : AT(ADDR(.rodata)) {
 		*(.rodata*)
 		*(.rdata*)
 	}
 
 	/* Read-write data (initialized) */
-	.data ALIGN(4K) : ALIGN(4K) {
+	.data ALIGN(4K) : AT(ADDR(.data)) {
 		*(.data*)
-        mbh_load_end_addr = .;
 	}
 
 	/* Read-write data (uninitialized) and stack. */
-	.bss ALIGN(4K) : ALIGN(4K) {
+	.bss ALIGN(4K) : AT(ADDR(.bss)) {
+        mbh_load_end_addr = .;
 		*(COMMON*)
 		*(.bss*)
-		*(.bootstrap_stack*)
-        mbh_bss_end_addr = .;
-        /* ^ Note that Multiboot bootloaders use this to clear the
-         * `.bss` section to zero. Guess we shouldn't rely on it in
-         * our code, in case we drop Multiboot in the future.
-         */
 	}
+    mbh_bss_end_addr = .;
+    /* ^ Note that Multiboot bootloaders use this to clear the
+     * `.bss` section to zero. Guess we shouldn't rely on it in
+     * our code, in case we drop Multiboot in the future.
+     */
 }
