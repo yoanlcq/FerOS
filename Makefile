@@ -11,7 +11,8 @@ os_name    := FerOS
 iso        := $(os_name).iso
 grubcfg    := isodir/boot/grub/grub.cfg
 iso_kernel := isodir/boot/$(os_name).elf
-kernel     := build/$(os_name).elf
+kernel_bin := build/$(os_name).bin
+kernel_elf := build/$(os_name).elf
 kernel_sym := build/$(os_name).sym
 kernel_dbg := build/$(os_name).dbg.elf
 
@@ -29,6 +30,7 @@ ld  := i686-elf-ld
 objcopy := i686-elf-objcopy
 objdump := i686-elf-objdump -M intel
 qemu-system := qemu-system-i386 $(strip \
+	-enable-kvm \
 	-name $(os_name) \
 	-serial file:logs/serial.log \
 	-serial stdio \
@@ -39,7 +41,7 @@ qemu-system := qemu-system-i386 $(strip \
 gdbflags := $(strip \
 	-q -tui \
 	-ex "set disassembly-flavor intel" \
-	-ex "file $(kernel)" \
+	-ex "file $(kernel_elf)" \
 	-ex "symbol-file $(kernel_sym)" \
 	-ex "target remote :1234" \
 )
@@ -51,6 +53,7 @@ gccflags  := $(strip \
 	-masm=intel \
 	-mno-red-zone \
 	-mfxsr -mmmx -msse -msse2 -mfpmath=sse \
+	-Wl,-melf_i386 \
 	-DIS_QEMU_GUEST \
 	-DWANTS_VIDEOMODE \
 	-DVIDEOMODE_WIDTH=320 \
@@ -68,7 +71,7 @@ ldlibs  := -lgcc
 
 
 .PHONY: all
-all: $(iso)
+all: $(iso) $(kernel_bin)
 
 
 $(kernel_dbg): src/elf.ld $(ofiles)
@@ -80,19 +83,24 @@ $(kernel_sym): $(kernel_dbg)
 	@mkdir -p $(@D)
 	$(objcopy) --only-keep-debug $< $@
 
-$(kernel): $(kernel_dbg) $(kernel_sym)
+$(kernel_elf): $(kernel_dbg) $(kernel_sym)
 	@mkdir -p $(@D)
 	$(objcopy) --strip-all $< $@
 	grub-file --is-x86-multiboot $@ # Check that our kernel is multiboot-compliant
 	$(objdump) --disassemble-all --prefix-addresses $@ > $@.dump
 
+$(kernel_bin): src/bin.ld $(ofiles)
+	@mkdir -p $(@D)
+	$(gcc) $(gccflags) -T $< -o $@ $(ofiles) $(ldlibs)
+	$(objdump) --disassemble-all --prefix-addresses -Mintel -bbinary -mi386 $@ > $@.dump
+
 $(grubcfg): 
 	@mkdir -p $(@D)
 	echo "menuentry \"$(os_name)\" {" > $@
-	echo "    multiboot /boot/$(notdir $(kernel))" >> $@
+	echo "    multiboot /boot/$(notdir $(kernel_elf))" >> $@
 	echo "}" >> $@
 
-$(iso_kernel): $(kernel)
+$(iso_kernel): $(kernel_elf)
 	@mkdir -p $(@D)
 	cp $< $@
 # NOTE: We can't do `ln -sf` instead of `cp` because the file wouldn't get 
@@ -127,17 +135,21 @@ re: clean all
 mrproper: clean all
 
 
-.PHONY: run run-release run-suspended
-run-release: all
+.PHONY: run run-release dbg run-dbg run-bin
+	
+run-release: $(iso)
 	@mkdir -p logs
 	$(qemu-system) -cdrom $(iso)
-run: all
+run: $(iso)
 	@mkdir -p logs
 	$(qemu-system) -gdb tcp::1234 -cdrom $(iso)
 dbg: all
 	$(gdb) $(gdbflags)
-run-dbg: all
+run-dbg: $(iso)
 	@mkdir -p logs
 	$(qemu-system) -S -gdb tcp::1234 -cdrom $(iso) &
 	$(gdb) $(gdbflags) -ex "continue"
 
+run-bin: $(kernel_bin)
+	@mkdir -p logs
+	$(qemu-system) -gdb tcp::1234 -kernel $(kernel_bin)

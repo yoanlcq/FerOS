@@ -7,6 +7,7 @@
 #include <multiboot.h>
 
 
+	.section .rodata
 /* We set the MB_AOUT_KLUDGE flag because it allows us to specify
  * exactly the representation of our kernel image. Otherwise,
  * we'd get crashes because the bootloader wouldn't load
