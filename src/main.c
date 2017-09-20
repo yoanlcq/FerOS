@@ -60,6 +60,13 @@ static void do_rgbmode_stuff(const MultibootInfo *mbi) {
 
     // TODO Possible bpps to handle: 8 15 16 24 32
     // Today it's 32.
+    // TODO Use non-temporal store instructions
+    // _mm_stream_si128 (SSE2)
+    // _mm_stream_pd (SSE2)
+    // _mm_stream_ps (SSE)
+    // _mm_stream_pi (MMX)
+    // _mm_stream_si64 (only in 64-bit mode)
+    // _mm_stream_si32 (all modes)
 
     for(usize frame_i=0 ; ; ++frame_i) {
         usize off = frame_i*4;
