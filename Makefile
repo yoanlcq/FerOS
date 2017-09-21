@@ -30,6 +30,7 @@ objcopy := i686-elf-objcopy
 objdump := i686-elf-objdump -M intel
 qemu-system := qemu-system-i386 $(strip \
 	-enable-kvm \
+	-m 1G \
 	-name $(os_name) \
 	-serial file:logs/serial.log \
 	-serial stdio \
@@ -45,8 +46,8 @@ gdbflags := $(strip \
 	-ex "target remote :1234" \
 )
 gccflags  := $(strip \
-	-std=gnu11 -Wall -Wextra -Werror -Iinclude \
-	-ffreestanding -O3 -nostdlib -g -ggdb \
+	-std=gnu11 -Wall -Wextra -Werror -Wshadow -Iinclude \
+	-ffreestanding -O0 -nostdlib -g -ggdb \
 	-fno-builtin -nostartfiles -nodefaultlibs -fno-exceptions \
 	-fno-stack-protector -static -fno-pic \
 	-masm=intel \

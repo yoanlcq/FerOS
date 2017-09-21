@@ -537,7 +537,7 @@ static inline void zero_u32   (u32  *mem, usize count) { memset_u32(mem, 0, coun
 static inline void zero_i8    (i8   *mem, usize count) { memset_i8 (mem, 0, count); }
 static inline void zero_i16   (i16  *mem, usize count) { memset_i16(mem, 0, count); }
 static inline void zero_i32   (i32  *mem, usize count) { memset_i32(mem, 0, count); }
-static inline void memcpy     (void *dst, const u8  *src, usize size ) { movsb(      dst,       src, size ); }
+static inline void memcpy     (void *dst, const void*src, usize size ) { movsb(      dst,       src, size ); }
 static inline void memcpy_u8  (u8   *dst, const u8  *src, usize count) { movsb((u8 *)dst, (u8 *)src, count); }
 static inline void memcpy_i8  (i8   *dst, const i8  *src, usize count) { movsb((u8 *)dst, (u8 *)src, count); }
 static inline void memcpy_u16 (u16  *dst, const u16 *src, usize count) { movsw((u16*)dst, (u16*)src, count); }

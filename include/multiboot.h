@@ -163,7 +163,7 @@ typedef struct {
 
 } MultibootInfo;
 
-typedef struct {
+typedef struct c_attr(packed) {
     u32 size;
     u64 addr;
     u64 len;
@@ -173,11 +173,7 @@ typedef struct {
 #define MB_MEMORY_NVS              4
 #define MB_MEMORY_BADRAM           5
     u32 type;
-} MultibootMmapEntry
-#ifndef targets_ia32
-    c_attr(packed)
-#endif
-;
+} MultibootMmapEntry;
 
 typedef struct {
     // The memory used goes from bytes 'start' to 'end-1' inclusive

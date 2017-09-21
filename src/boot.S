@@ -9,7 +9,7 @@
 	.section .text
 .fn _start
 	jmp .L_start
-.size _start, (. - _start)
+.endfn _start
 
 	.section .rodata
 /* We set the MB_AOUT_KLUDGE flag because it allows us to specify

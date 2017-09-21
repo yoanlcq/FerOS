@@ -40,6 +40,8 @@ static void do_textmode_stuff(const MultibootInfo *mbi) {
     vga_set_cursor(cursor);
 }
 
+#define lerp(a,b,t) ({ let _t = (t); (a)*(1-_t) + (b)*_t; })
+
 static void do_rgbmode_stuff(const MultibootInfo *mbi) {
     let fb = &mbi->framebuffer;
     let w = fb->width;
@@ -68,18 +70,72 @@ static void do_rgbmode_stuff(const MultibootInfo *mbi) {
     // _mm_stream_si64 (only in 64-bit mode)
     // _mm_stream_si32 (all modes)
 
+    assert_cmp(bpp, ==, 32, "We assume 32 bits-per-pixel!");
+    assert_cmp(w%4, ==, 0u, "For now we assume the width to be a multiple of 4 for SIMD operations!");
+    assert_cmp(((uptr)fbmem) % 16, ==, 0u, "We assume a SSE alignment!");
+
+    /*
+    __m128 cols[4] = {
+        { 0.2, 0.8, 0.9, 1 },
+        { 0.1, 0.6, 0.9, 1 },
+        { 0.2, 1, 0.1, 1 },
+        { 0.3, 0.8, 0.3, 1 },
+    };
+    */
+    __m128 cols[4] = {
+        { 1, 0, 0, 1 },
+        { 0, 1, 0, 1 },
+        { 0, 0, 1, 1 },
+        { 1, 1, 1, 1 },
+    };
+
     for(usize frame_i=0 ; ; ++frame_i) {
-        usize off = frame_i*4;
-        let t_start = _rdtsc();
+        // usize off = frame_i*4;
+        // let t_start = _rdtsc();
+        usize roundtrip = 3200;
+        float factor = (frame_i%(roundtrip/4))/(float)(roundtrip/4);
+        usize index = 4.f*(frame_i%roundtrip)/(float)roundtrip;
+        __m128 rgba_tl = lerp(cols[(index+0)%4], cols[(index+1)%4], factor);
+        __m128 rgba_tr = lerp(cols[(index+1)%4], cols[(index+2)%4], factor);
+        __m128 rgba_br = lerp(cols[(index+2)%4], cols[(index+3)%4], factor);
+        __m128 rgba_bl = lerp(cols[(index+3)%4], cols[(index+4)%4], factor);
         for(usize y=0 ; y<h ; ++y) {
-            for(usize x=0 ; x<w ; ++x) {
+            for(usize x=0 ; x<w ; x += 4) {
+                float yfactor = y/(float)h;
+                float xfactor0 = (x+0)/(float)w;
+                float xfactor1 = (x+1)/(float)w;
+                float xfactor2 = (x+2)/(float)w;
+                float xfactor3 = (x+3)/(float)w;
+                __m128 rgba_cur0_hi = lerp(rgba_tl, rgba_tr, xfactor0);
+                __m128 rgba_cur0_lo = lerp(rgba_bl, rgba_br, xfactor0);
+                __m128 rgba_cur0 = lerp(rgba_cur0_hi, rgba_cur0_lo, yfactor);
+                __m128 rgba_cur1_hi = lerp(rgba_tl, rgba_tr, xfactor1);
+                __m128 rgba_cur1_lo = lerp(rgba_bl, rgba_br, xfactor1);
+                __m128 rgba_cur1 = lerp(rgba_cur1_hi, rgba_cur1_lo, yfactor);
+                __m128 rgba_cur2_hi = lerp(rgba_tl, rgba_tr, xfactor2);
+                __m128 rgba_cur2_lo = lerp(rgba_bl, rgba_br, xfactor2);
+                __m128 rgba_cur2 = lerp(rgba_cur2_hi, rgba_cur2_lo, yfactor);
+                __m128 rgba_cur3_hi = lerp(rgba_tl, rgba_tr, xfactor3);
+                __m128 rgba_cur3_lo = lerp(rgba_bl, rgba_br, xfactor3);
+                __m128 rgba_cur3 = lerp(rgba_cur3_hi, rgba_cur3_lo, yfactor);
+                // BGRA
+                __m128i pack = _mm_setr_epi8(
+                    0xff*rgba_cur0[2], 0xff*rgba_cur0[1], 0xff*rgba_cur0[0], 0xff*rgba_cur0[3],
+                    0xff*rgba_cur1[2], 0xff*rgba_cur1[1], 0xff*rgba_cur1[0], 0xff*rgba_cur1[3],
+                    0xff*rgba_cur2[2], 0xff*rgba_cur2[1], 0xff*rgba_cur2[0], 0xff*rgba_cur2[3],
+                    0xff*rgba_cur3[2], 0xff*rgba_cur3[1], 0xff*rgba_cur3[0], 0xff*rgba_cur3[3]
+                );
+                _mm_stream_si128((__m128i*) &fbmem[y*fb->pitch + x*(bpp/8)], pack);
+                /*
                 fbmem[y*fb->pitch + x*(bpp/8) + fb->r_bits_offset/8] = 0xff*(((x+off)%w)/(float)w);
                 fbmem[y*fb->pitch + x*(bpp/8) + fb->g_bits_offset/8] = 0xff*(((y+off)%h)/(float)h);
-                fbmem[y*fb->pitch + x*(bpp/8) + fb->b_bits_offset/8] = 0xff/**((x+y)/(float)(w+h))*/;
+                fbmem[y*fb->pitch + x*(bpp/8) + fb->b_bits_offset/8] = 0xff//((x+y)/(float)(w+h));
+                */
             }
         }
-        let t_end = _rdtsc();
-        logd("Frame ", frame_i, " filled within ", (t_end - t_start), " cycles.");
+        _mm_sfence();
+        // let t_end = _rdtsc();
+        // logd("Frame ", frame_i, " filled within ", (t_end - t_start), " cycles.");
     }
 }
 

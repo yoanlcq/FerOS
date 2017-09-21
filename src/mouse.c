@@ -1,33 +1,33 @@
+#include <mouse.h>
+
 // Experimental !!
 // Right now this is a shameful copy-paste from
-//     https://houbysoft.com/download/ps2mouse.html
+//     https://houbysoft.com/download/mouse.html
 // . I've grabbed the code to make it easier for me later, but I'll want
 // to fully understand what's going on and properly test it.
 
-typedef struct {} Regs;
-TODO void irq_install_handler(u32 i, void (*handler)(Regs *r)) {
-    (void)i;
-    (void)handler;
-}
+// TODO: Support hot-plugging and unplugging. Right now, we don't receive
+// any more IRQs after unplugging and re-plugging the mouse
 
-void ps2mouse_wait(u8 type) {
-    u32 timeout=100000;
-    if(type==0) {
-        while(timeout--) {
-            if((inb(0x64) & 1)==1) {
-                return;
-            }
+// TODO: Don't block indefinitely and support hot-pluggin instead.
+void mouse_wait_in() {
+    for(;;) {
+        if(inb(0x64) & 1) {
+            break;
         }
-    } else {
-        while(timeout--) {
-            if((inb(0x64) & 2)==0) {
-                return;
-            }
+        _mm_pause();
+    }
+}
+void mouse_wait_out() {
+    for(;;) {
+        if(!(inb(0x64) & 2)) {
+            break;
         }
+        _mm_pause();
     }
 }
 
-void ps2mouse_handler(Regs *r) {
+void mouse_handler(IsrContext *r) {
     (void)r;
     static i32 x = 0, y = 0;
     static u8 cycle = 0;
@@ -44,43 +44,44 @@ void ps2mouse_handler(Regs *r) {
         if (!(mouse_bytes[0] & 0x10))
             x |= 0xFFFFFF00; //delta-x is a negative value
         if (mouse_bytes[0] & 0x4)
-            logd("Middle button is pressed!n");
+            logd("Middle button is pressed!");
         if (mouse_bytes[0] & 0x2)
-            logd("Right button is pressed!n");
+            logd("Right button is pressed!");
         if (mouse_bytes[0] & 0x1)
-            logd("Left button is pressed!n");
+            logd("Left button is pressed!");
         // do what you want here, just replace the puts's to execute an action for each button
         // to use the coordinate data, use mouse_bytes[1] for delta-x, and mouse_bytes[2] for delta-y
     }
 }
 
-void ps2mouse_write(u8 a_write) {
-    ps2mouse_wait(1);
+void mouse_write(u8 a_write) {
+    mouse_wait_out();
     outb(0x64, 0xD4);
-    ps2mouse_wait(1);
+    mouse_wait_out();
     outb(0x60, a_write);
 }
 
-u8 ps2mouse_read() {
-    ps2mouse_wait(0);
+u8 mouse_read() {
+    mouse_wait_in();
     return inb(0x60);
 }
 
-void ps2mouse_setup() {
-    ps2mouse_wait(1);
+void mouse_setup() {
+    logd("Waiting for the mouse...");
+
+    mouse_wait_out();
     outb(0x64,0xA8);
-    ps2mouse_wait(1);
+    mouse_wait_out();
     outb(0x64,0x20);
     u8 status_byte;
-    ps2mouse_wait(0);
+    mouse_wait_in();
     status_byte = (inb(0x60) | 2);
-    ps2mouse_wait(1);
+    mouse_wait_out();
     outb(0x64, 0x60);
-    ps2mouse_wait(1);
+    mouse_wait_out();
     outb(0x60, status_byte);
-    ps2mouse_write(0xF6);
-    ps2mouse_read();
-    ps2mouse_write(0xF4);
-    ps2mouse_read();
-    irq_install_handler(12, ps2mouse_handler);
+    mouse_write(0xF6);
+    mouse_read();
+    mouse_write(0xF4);
+    mouse_read();
 }

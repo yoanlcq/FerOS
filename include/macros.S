@@ -13,3 +13,7 @@
 	.type \sym, @function
 \sym:
 	.endm
+/* .endfn - End the definition of a public function */
+	.macro .endfn sym
+	.size \sym, (. - \sym)
+	.endm

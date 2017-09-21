@@ -48,6 +48,10 @@ c_attr(cold) void __deinit() {
     log_shutdown();
 }
 
+// TODO FIXME
+extern void gdt_setup();
+extern void idt_setup();
+
 c_attr(cold) void __init(u32 multiboot_magic) {
     log_setup();
 
@@ -126,14 +130,19 @@ c_attr(cold) void __init(u32 multiboot_magic) {
     }
 
     // Enable SSE* extensions. Chapter 13 of Intel's system programming guide.
+    // NOTE: Do it before setting up GDT, IDT, etc, so we can use floats
+    // there with SSE.
     auto cr4 = get_cr4();
     auto cr0 = get_cr0();
     cr4 |= 1<<9;    // Set CR4.OSFXSR[bit 9] = 1;
-    cr4 |= 1<<10;   // Set CR4.OSXMMEXCPT[bit 10] = 1; // TODO this indicates that we provide a handler but we don't have it yet! 
+    cr4 |= 1<<10;   // Set CR4.OSXMMEXCPT[bit 10] = 1; // Indicates we've provided an SIMD exception handler, which is true now.
     cr0 &= ~(1<<2); // Clear CR0.EM[bit 2] = 0;
     cr0 |= 1<<1;    // Set CR0.MP[bit 1] = 1;
-    cr0 &= ~(1<<3); // XXX Clear CR0.TS[bit 3] = 0; Not mentioned, but maybe important for us: prevents SSE and x87 instructions from throwing #NM (which I don't think we handle yet);
+    cr0 &= ~(1<<3); // XXX Clear CR0.TS[bit 3] = 0; Not mentioned, but maybe important for us: prevents SSE and x87 instructions from throwing #NM
     set_cr4(cr4);
     set_cr0(cr0);
+
+    gdt_setup();
+    idt_setup();
 }
 
