@@ -31,6 +31,7 @@ SECTIONS {
 	.rodata ALIGN(4K) : AT(ADDR(.rodata)) {
 		*(.rodata*)
 		*(.rdata*)
+        *(.assets*)
 	}
 
 	/* Read-write data (initialized) */

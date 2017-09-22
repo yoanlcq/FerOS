@@ -55,7 +55,7 @@ static void irq0 (IsrContext* ctx) {
     (void)ctx;
     ++irq0_timer_ticks;
     if(irq0_timer_ticks % ((u32)irq0_timer_frequency) == 0) {
-        logd("Approximately one second has passed!");
+        // logd("Approximately one second has passed!");
     }
 }
 static void irq1 (IsrContext* ctx) {
@@ -246,7 +246,7 @@ void idt_setup() {
     irq0_set_timer_frequency(100.f);
     // BUG: Setting up the mouse incurs some glitches when rendering ???
     // e.g tiny horizontal grey segments which flash randomly
-    mouse_setup();
+    // mouse_setup();
 }
 
 void isr_dispatch(IsrContext *ctx) {

@@ -3,11 +3,10 @@
 #include <log.h>
 #include <cvt.h>
 
+// TODO: Be able to format hex (and any base really)
+// TODO: Implement memory allocation (implies having variables in elf.ld);
 // TODO: Document our stuff and have a proper FAQ
 // TODO: See how to switch freely between Text mode and any VBE mode
-// TODO: Set up the IDT
-// TODO: Be able to format hex (and any base really)
-// TODO: Implement malloc();
 // TODO: Implement multi-threading;
 // TODO: Have more control over our graphics device (and screen)
 // TODO: Audio ?
@@ -139,6 +138,10 @@ static void do_rgbmode_stuff(const MultibootInfo *mbi) {
     }
 }
 
+
+// TODO FIXME
+extern u8 *mbh_bss_end_addr;
+
 void main(const MultibootInfo *mbi) {
     logd("Multiboot info flags = ", mbi->flags);
 
@@ -205,6 +208,16 @@ void main(const MultibootInfo *mbi) {
             case MB_MEMORY_NVS             : logd("NVS"); break;
             case MB_MEMORY_BADRAM          : logd("Bad RAM"); break;
             }
+            if(mmap->type == MB_MEMORY_AVAILABLE) {
+                u8 *mem = (u8*) (uptr) mmap->addr;
+                usize len = mmap->len - (usize)(mbh_bss_end_addr - mem); //, off = 1000;
+                if(mem) {
+                    logd("Clearing area");
+                    memset(mbh_bss_end_addr, 0xde, len);
+                    logd("Done");
+                }
+            }
+
             mmap = (MultibootMmapEntry*) (((uptr)mmap) + mmap->size + sizeof mmap->size);
         }
     }

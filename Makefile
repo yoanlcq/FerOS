@@ -72,24 +72,30 @@ all: $(iso)
 
 $(kernel_dbg): src/elf.ld $(ofiles)
 	@mkdir -p $(@D)
-	$(gcc) $(gccflags) -T $< -o $@ $(ofiles) $(ldlibs)
-	$(objdump) --disassemble-all --prefix-addresses $@ > $@.dump
+	@echo Link $@ using $<
+	@$(gcc) $(gccflags) -T $< -o $@ $(ofiles) $(ldlibs)
+#$(objdump) --disassemble-all --prefix-addresses $@ > $@.dump
 
 $(kernel_sym): $(kernel_dbg)
 	@mkdir -p $(@D)
-	$(objcopy) --only-keep-debug $< $@
+	@echo Extract debug symbols from $< into $@
+	@$(objcopy) --only-keep-debug $< $@
 
 $(kernel_elf): $(kernel_dbg) $(kernel_sym)
 	@mkdir -p $(@D)
-	$(objcopy) --strip-all $< $@
-	grub-file --is-x86-multiboot $@ # Assert that our kernel is multiboot-compliant
-	$(objdump) --disassemble-all --prefix-addresses $@ > $@.dump
+	@echo Strip $(kernel_dbg) into $@
+	@$(objcopy) --strip-all $< $@
+	@echo Assert that $@ is multiboot-compliant
+	@grub-file --is-x86-multiboot $@ 
+	@du -sh $@
+#$(objdump) --disassemble-all --prefix-addresses $@ > $@.dump
 
 $(grubcfg): 
 	@mkdir -p $(@D)
-	echo "menuentry \"$(os_name)\" {" > $@
-	echo "    multiboot /boot/$(notdir $(kernel_elf))" >> $@
-	echo "}" >> $@
+	@echo Generate $@
+	@echo "menuentry \"$(os_name)\" {" > $@
+	@echo "    multiboot /boot/$(notdir $(kernel_elf))" >> $@
+	@echo "}" >> $@
 
 $(iso_kernel): $(kernel_elf)
 	@mkdir -p $(@D)
@@ -104,19 +110,22 @@ $(iso): $(iso_kernel) $(kernel_sym) $(grubcfg)
 
 build/%.s.o: src/%.s
 	@mkdir -p $(@D)
-	$(as) $(asflags) $< -o $@
-	$(objdump) --disassemble-all --prefix-addresses $@ > $@.dump
+	@echo Assemble $^ "(skipping pre-processing)"
+	@$(as) $(asflags) $< -o $@
+#$(objdump) --disassemble-all --prefix-addresses $@ > $@.dump
 
 build/%.S.o: src/%.S
 	@mkdir -p $(@D)
-	$(gcc) $(gccflags) $(gcc_asflags) -DASM_FILE=1 -c $< -o $@
-	$(objdump) --disassemble-all --prefix-addresses $@ > $@.dump
+	@echo Assemble $^
+	@$(gcc) $(gccflags) $(gcc_asflags) -DASM_FILE -c $< -o $@
+#$(objdump) --disassemble-all --prefix-addresses $@ > $@.dump
 
 build/%.c.o: src/%.c
 	@mkdir -p $(@D)
-	$(gcc) $(gccflags) $(gcc_c_only_flags) -c $< -o $@
-	$(gcc) $(gccflags) $(gcc_c_only_flags) -S $< -o $@.S
-	$(objdump) --disassemble-all --prefix-addresses $@ > $@.dump
+	@echo Compile $^
+	@$(gcc) $(gccflags) $(gcc_c_only_flags) -c $< -o $@
+#$(gcc) $(gccflags) $(gcc_c_only_flags) -S $< -o $@.S
+#$(objdump) --disassemble-all --prefix-addresses $@ > $@.dump
 
 
 .PHONY: clean re mrproper

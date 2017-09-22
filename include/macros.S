@@ -7,6 +7,11 @@
 	.type \sym, @common
 	.endm
 
+/* .endcst - End the definition of a public constant */
+	.macro .endcst sym
+	.size \sym, (. - \sym)
+	.endm
+
 /* .fn - Define a public function */
 	.macro .fn sym
 	.global \sym
