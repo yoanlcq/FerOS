@@ -520,7 +520,7 @@ static inline_always void hlt() {
 
 // Halt the CPU. Could just be implemented with `for(;;);`, but is
 // intended to save power.
-static inline noreturn void hang() { for(;;) hlt(); }
+static inline noreturn void hang() { asm volatile ("cli" asm_endl); for(;;) hlt(); }
 
 // WISH: Now we have SSE, we might as well write "memcpy_sse" functions
 static inline void memset     (void *mem, u8  value, usize size ) { stosb(      mem, value, size ); }

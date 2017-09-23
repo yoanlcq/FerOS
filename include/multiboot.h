@@ -25,7 +25,7 @@
 #define MB_INFO_VBE_INFO         0x00000800u
 #define MB_INFO_FRAMEBUFFER_INFO 0x00001000u
 
-#ifndef ASM_FILE
+#ifndef __ASSEMBLER__
 
 #include <stdint.h>
 
@@ -50,9 +50,15 @@ typedef struct {
     u32 num;
     u32 size;
     u32 addr;
-    u32 shndx;
+    u32 shndx; // Section Header Index ???
 } MultibootElfSectionHeaderTable;
 
+typedef struct {
+    u32 tabsize;
+    u32 strsize;
+    u32 addr;
+    u32 reserved;
+} MultibootAoutSymbolTable;
 
 
 // VESA BIOS Extensions (VBE) 3 information
@@ -113,7 +119,6 @@ typedef struct {
 } MultibootFramebuffer;
 
 typedef struct {
-    // Multiboot info version number
     u32 flags;
 
     // Available memory from BIOS
@@ -134,15 +139,16 @@ typedef struct {
         u32 addr;
     } mods;
 
-    MultibootElfSectionHeaderTable elf_sec;
+    union {
+        MultibootAoutSymbolTable aout_sym;
+        MultibootElfSectionHeaderTable elf_sec;
+    };
 
-    // Memory Mapping buffer
     struct {
         u32 length;
         u32 addr;
     } mmap;
 
-    // Drive Info buffer
     struct {
         u32 length;
         u32 addr;
@@ -151,13 +157,8 @@ typedef struct {
     // ROM configuration table
     u32 config_table;
 
-    // Boot Loader Name
-    u32 boot_loader_name;
-
-    // APM table
+    u32 bootloader_name;
     u32 apm_table;
-
-    // Video
     MultibootInfoVbe vbe;
     MultibootFramebuffer framebuffer;
 

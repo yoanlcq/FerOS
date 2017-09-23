@@ -1,10 +1,19 @@
+#include <kernel_sections.h>
+#include <string.h>
 #include <multiboot.h>
 #include <vga.h>
+#include <vbe3.h>
 #include <log.h>
 #include <cvt.h>
 
+// TODO: Builds with optimizations higher than -O0 cause double faults or coprocessor segment overrun. (looks like we're writing to the stack)
+// TODO: Are we in protected mode or enhanced mode ?
+// TODO: Clean-up stuff (esp. IDT, GDT, etc (and allow setting handlers from anywhere))
 // TODO: Be able to format hex (and any base really)
-// TODO: Implement memory allocation (implies having variables in elf.ld);
+// TODO: Have a proper, readable, exhaustive, memory map
+// TODO: Implement memory allocation;
+// TODO: Support mouse hot-plugging;
+// TODO: Implement the basics of the rasterizer (needs vectors, matrices, and sin cos)
 // TODO: Document our stuff and have a proper FAQ
 // TODO: See how to switch freely between Text mode and any VBE mode
 // TODO: Implement multi-threading;
@@ -138,10 +147,6 @@ static void do_rgbmode_stuff(const MultibootInfo *mbi) {
     }
 }
 
-
-// TODO FIXME
-extern u8 *mbh_bss_end_addr;
-
 void main(const MultibootInfo *mbi) {
     logd("Multiboot info flags = ", mbi->flags);
 
@@ -175,7 +180,25 @@ void main(const MultibootInfo *mbi) {
             "We can't be both AOUT and ELF! "
             "We are always expected to be an ELF image anyway."
         );
-        // We could abort here
+        abort();
+    }
+    if(!((mbi->flags & MB_INFO_AOUT_SYMS) || (mbi->flags & MB_INFO_ELF_SHDR))) {
+        logd(
+            "Bits 4 and 5 are not set! This is most likely because the "
+            "claimed Multiboot header disagrees with the kernel image's "
+            "format."
+        );
+        abort();
+    }
+
+    if(mbi->flags & MB_INFO_AOUT_SYMS) {
+        let as = &(mbi->aout_sym);
+        logd(
+            "Multiboot A.OUT symbol table: "
+            "tabsize = ", as->tabsize, ", "
+            "strsize = ", as->strsize, ", "
+            "addr = ", as->addr
+        );
     }
 
     if(mbi->flags & MB_INFO_ELF_SHDR) {
@@ -186,6 +209,33 @@ void main(const MultibootInfo *mbi) {
             "addr = ", es->addr, ", shndx = ", es->shndx
         );
     }
+
+    logd("&mbh_load_addr    = ", (uptr) &mbh_load_addr   );
+    logd("&ks_phys_addr     = ", (uptr) &ks_phys_addr    );
+    logd("&ks_text_start    = ", (uptr) &ks_text_start   );
+    logd("&ks_text_end      = ", (uptr) &ks_text_end     );
+    logd("&ks_rodata_start  = ", (uptr) &ks_rodata_start );
+    logd("&ks_rodata_end    = ", (uptr) &ks_rodata_end   );
+    logd("&ks_assets_start  = ", (uptr) &ks_assets_start );
+    logd("&ks_assets_end    = ", (uptr) &ks_assets_end   );
+    logd("&ks_data_start    = ", (uptr) &ks_data_start   );
+    logd("&ks_data_end      = ", (uptr) &ks_data_end     );
+    logd("&ks_bss_start     = ", (uptr) &ks_bss_start    );
+    logd("&ks_stack_bottom  = ", (uptr) &ks_stack_bottom );
+    logd("&ks_stack_top     = ", (uptr) &ks_stack_top    );
+    logd("&ks_bss_end       = ", (uptr) &ks_bss_end      );
+    logd("&ks_end           = ", (uptr) &ks_end          );
+    logd("&mbh_bss_end_addr = ", (uptr) &mbh_bss_end_addr);
+
+    logd("* Kernel image   : ", (uptr)&ks_phys_addr, " - ", (uptr) &ks_end);
+    logd("* Multiboot info : ", (uptr)mbi, " - ", ((uptr)mbi) + sizeof *mbi);
+    logd("* Bootloader name: ", (uptr)mbi->bootloader_name, " - ", ((uptr)mbi->bootloader_name) + strlen((char*)mbi->bootloader_name));
+    logd("* Command line   : ", (uptr)mbi->cmdline, " - ", ((uptr)mbi->cmdline) + strlen((char*)mbi->cmdline));
+    logd("* Mmap data      : ", (uptr)mbi->mmap.addr, " - ", ((uptr)mbi->mmap.addr)+mbi->mmap.length);
+    logd("* VBE ctrl info  : ", (uptr)mbi->vbe.control_info, " - ", "???");
+    logd("* VBE mode info  : ", (uptr)mbi->vbe.mode_info, " - ", "???");
+    logd("* VGA Text FB    : ", (uptr)VGA_FB, " - ", ((uptr)VGA_FB) + VGA_W*VGA_H*sizeof *VGA_FB);
+    logd("* RGB framebuffer: ", (uptr)mbi->framebuffer.addr, " - ", ((uptr)mbi->framebuffer.addr) + mbi->framebuffer.height*mbi->framebuffer.pitch);
 
     if(mbi->flags & MB_INFO_MEM_MAP) {
         logd("Mmap: addr = ", mbi->mmap.addr, ", length = ", mbi->mmap.length);
@@ -208,21 +258,29 @@ void main(const MultibootInfo *mbi) {
             case MB_MEMORY_NVS             : logd("NVS"); break;
             case MB_MEMORY_BADRAM          : logd("Bad RAM"); break;
             }
-            if(mmap->type == MB_MEMORY_AVAILABLE) {
+            assert_cmp((uptr)&ks_phys_addr, ==, 0x100000u, "");
+            if(mmap->type == MB_MEMORY_AVAILABLE && mmap->addr >= (uptr)&ks_phys_addr) {
                 u8 *mem = (u8*) (uptr) mmap->addr;
-                usize len = mmap->len - (usize)(mbh_bss_end_addr - mem); //, off = 1000;
-                if(mem) {
-                    logd("Clearing area");
-                    memset(mbh_bss_end_addr, 0xde, len);
-                    logd("Done");
+                usize len = mmap->len;
+                // Pay attention not to overwrite the physical memory at which
+                // our kernel is loaded.
+                // TODO: We should protect its memory.
+                // TODO: We should also protect the stack so we know when we get a stack overflow
+                if(mem == (void*) &ks_phys_addr) {
+                    mem = (void*) &ks_end;
+                    len -= ((uptr) &ks_end) - ((uptr) &ks_phys_addr);
                 }
+                logd("Claiming ", len, " bytes at ", (uptr) mem, "...");
+                memset(mem, 0xde, len);
+                logd("Done");
             }
 
             mmap = (MultibootMmapEntry*) (((uptr)mmap) + mmap->size + sizeof mmap->size);
         }
     }
+
     if(mbi->flags & MB_INFO_BOOT_LOADER_NAME) {
-        logd("The bootloader is \"", (const char*) (uptr) mbi->boot_loader_name, "\"");
+        logd("The bootloader is \"", (const char*) (uptr) mbi->bootloader_name, "\"");
     }
 
     if(mbi->flags & MB_INFO_VBE_INFO) {

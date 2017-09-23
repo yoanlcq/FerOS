@@ -53,7 +53,7 @@ gccflags  := $(strip \
 	-masm=intel \
 	-mno-red-zone \
 	-mfxsr -mmmx -msse -msse2 -mfpmath=sse \
-	-Wl,-melf_i386 \
+	-Wl,-melf_i386 -Wl,--fatal-warnings \
 	-DIS_QEMU_GUEST \
 )
 gcc_c_only_flags := -include __prelude.h
@@ -117,7 +117,7 @@ build/%.s.o: src/%.s
 build/%.S.o: src/%.S
 	@mkdir -p $(@D)
 	@echo Assemble $^
-	@$(gcc) $(gccflags) $(gcc_asflags) -DASM_FILE -c $< -o $@
+	@$(gcc) $(gccflags) $(gcc_asflags) -c $< -o $@
 #$(objdump) --disassemble-all --prefix-addresses $@ > $@.dump
 
 build/%.c.o: src/%.c

@@ -55,7 +55,7 @@ const GdtPtr gdt_ptr = {
 void gdt_update();
 
 void gdt_setup() {
-    u32 limit = 0xffffffff;
+    u32 limit = 0xfffff; // We don't have more than 20 bits to express it
     u32 base = 0x00000000;
 
     GdtEntry entry = {
