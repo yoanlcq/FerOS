@@ -58,6 +58,7 @@ static void irq0 (IsrContext* ctx) {
         // logd("Approximately one second has passed!");
     }
 }
+
 static void irq1 (IsrContext* ctx) {
     (void)ctx;
     u8 scancode = inb(0x60);
@@ -83,65 +84,6 @@ static void irq13(IsrContext* ctx) {(void)ctx;}
 static void irq14(IsrContext* ctx) {(void)ctx;}
 static void irq15(IsrContext* ctx) {(void)ctx;}
 
-// Entry points, defined in assembly (`src/idt.S`)
-//
-// Processor-reserved interrupts
-void _isr_entry_0();
-void _isr_entry_1();
-void _isr_entry_2();
-void _isr_entry_3();
-void _isr_entry_4();
-void _isr_entry_5();
-void _isr_entry_6();
-void _isr_entry_7();
-void _isr_entry_8();
-void _isr_entry_9();
-void _isr_entry_10();
-void _isr_entry_11();
-void _isr_entry_12();
-void _isr_entry_13();
-void _isr_entry_14();
-void _isr_entry_15();
-void _isr_entry_16();
-void _isr_entry_17();
-void _isr_entry_18();
-void _isr_entry_19();
-void _isr_entry_20();
-void _isr_entry_21();
-void _isr_entry_22();
-void _isr_entry_23();
-void _isr_entry_24();
-void _isr_entry_25();
-void _isr_entry_26();
-void _isr_entry_27();
-void _isr_entry_28();
-void _isr_entry_29();
-void _isr_entry_30();
-void _isr_entry_31();
-
-// Remapped IRQ 0 through IRQ 15
-void _isr_entry_32();
-void _isr_entry_33();
-void _isr_entry_34();
-void _isr_entry_35();
-void _isr_entry_36();
-void _isr_entry_37();
-void _isr_entry_38();
-void _isr_entry_39();
-void _isr_entry_40();
-void _isr_entry_41();
-void _isr_entry_42();
-void _isr_entry_43();
-void _isr_entry_44();
-void _isr_entry_45();
-void _isr_entry_46();
-void _isr_entry_47();
-
-typedef struct {
-    const char *name;
-    void (*entry)();
-    void (*handler)(IsrContext*);
-} IsrSpec;
 
 static const IsrSpec isrs[] = {
     { .entry = _isr_entry_0 , .name = "Divide error"               , .handler = isr0_divide_error_exception },
@@ -215,11 +157,8 @@ void irq0_set_timer_frequency(f32 hz) {
 }
 
 
-// External, defined in assembly
-void idt_load();
-
 // Magic which remaps IRQ 0 to 15 to IDT entries 32 to 48.
-static void irq_remap() {
+static _cold void irq_remap() {
     outb(0x20, 0x11);
     outb(0xA0, 0x11);
     outb(0x21, 0x20);
@@ -232,21 +171,16 @@ static void irq_remap() {
     outb(0xA1, 0x0);
 }
 
-void idt_setup() {
+void _cold idt_setup() {
     for(usize i=0 ; i<countof(isrs) ; ++i) {
         idt[i] = IdtEntry_init(isrs[i].entry, 0x08);
     }
 
     // We could also have done this _before_ preparing the IDT.
     idt_load();
-
     irq_remap();
-    asm volatile ("sti" asm_endl);
 
-    irq0_set_timer_frequency(100.f);
-    // BUG: Setting up the mouse incurs some glitches when rendering ???
-    // e.g tiny horizontal grey segments which flash randomly
-    // mouse_setup();
+    asm volatile ("sti" asm_endl);
 }
 
 void isr_dispatch(IsrContext *ctx) {
@@ -257,6 +191,7 @@ void isr_dispatch(IsrContext *ctx) {
     }
     isr.handler(ctx);
     if(i < 32) { // If it's a processor-generated exception, we halt for now.
+        logd("Hanging because it's assumed to be fatal.");
         hang();
     } else {
         // If we're here, we're done servicing an IRQ.
@@ -283,4 +218,5 @@ void sleep_ms(u32 ms) {
 void sleep_s(u32 s) {
     irq0_timer_wait_ticks(s * irq0_timer_frequency);
 }
+
 

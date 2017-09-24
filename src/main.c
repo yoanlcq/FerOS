@@ -6,7 +6,6 @@
 #include <log.h>
 #include <cvt.h>
 
-// TODO: Builds with optimizations higher than -O0 cause double faults or coprocessor segment overrun. (looks like we're writing to the stack)
 // TODO: Are we in protected mode or enhanced mode ?
 // TODO: Clean-up stuff (esp. IDT, GDT, etc (and allow setting handlers from anywhere))
 // TODO: Be able to format hex (and any base really)
@@ -237,6 +236,7 @@ void main(const MultibootInfo *mbi) {
     logd("* VGA Text FB    : ", (uptr)VGA_FB, " - ", ((uptr)VGA_FB) + VGA_W*VGA_H*sizeof *VGA_FB);
     logd("* RGB framebuffer: ", (uptr)mbi->framebuffer.addr, " - ", ((uptr)mbi->framebuffer.addr) + mbi->framebuffer.height*mbi->framebuffer.pitch);
 
+
     if(mbi->flags & MB_INFO_MEM_MAP) {
         logd("Mmap: addr = ", mbi->mmap.addr, ", length = ", mbi->mmap.length);
 
@@ -265,7 +265,8 @@ void main(const MultibootInfo *mbi) {
                 // Pay attention not to overwrite the physical memory at which
                 // our kernel is loaded.
                 // TODO: We should protect its memory.
-                // TODO: We should also protect the stack so we know when we get a stack overflow
+                // TODO: We should also protect the stack's bounds so we know
+                // when we get a stack overflow.
                 if(mem == (void*) &ks_phys_addr) {
                     mem = (void*) &ks_end;
                     len -= ((uptr) &ks_end) - ((uptr) &ks_phys_addr);

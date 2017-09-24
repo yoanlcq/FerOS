@@ -47,7 +47,7 @@ gdbflags := $(strip \
 )
 gccflags  := $(strip \
 	-std=gnu11 -Wall -Wextra -Werror -Wshadow -Iinclude \
-	-ffreestanding -O0 -nostdlib -g -ggdb \
+	-ffreestanding -O3 -nostdlib -g -ggdb \
 	-fno-builtin -nostartfiles -nodefaultlibs -fno-exceptions \
 	-fno-stack-protector -static -fno-pic \
 	-masm=intel \

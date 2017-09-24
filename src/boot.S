@@ -58,12 +58,13 @@ ks_stack_top:
 	# General note: Take care to preserve eax and ebx until calls to __init
 	# and main!
 
-	cli
-	cld
-
 	# Initialize stack pointer
 	mov		esp, ks_stack_top
 	mov		ebp, ks_stack_top	# Not strictly needed, but convenient
+
+	# Reset EFLAGS
+	pushd	0
+	popf
 
 	# Save Multiboot magic in eax into edx (because al is overwritten below)
 	mov		edx, eax
@@ -74,10 +75,6 @@ ks_stack_top:
 	mov		ecx, (ks_stack_top - ks_stack_bottom)
 	rep stosb
 
-	# Reset EFLAGS
-	pushd	0
-	popf
-	
 	push	ebx		# 32-bit physical address to Multiboot information structure
 	push	edx		# Multiboot info magic, 0x2BADBOO2, saved from eax earlier
 	call	__init
@@ -87,8 +84,7 @@ ks_stack_top:
 	add		esp, 4		# Pop pointer to Multiboot info
 
 	call	__deinit
-
-	cli
+	cli		# Clear Interrupts flag
 .L_hang:
 	hlt
 	jmp		.L_hang

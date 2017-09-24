@@ -30,29 +30,62 @@
 // If it ever needs to pass state to `main()`, it should do so via
 // global variables, such as `cpu_features`.
 
-
-#ifdef __i386__
-#pragma GCC target ("no-mmx", "no-sse", "no-sse2", "fpmath=387")
-#endif
-
 #include <multiboot.h>
 #include <string.h>
 #include <vga.h>
 #include <log.h>
+#include <gdt.h>
+#include <idt.h>
+#include <mouse.h>
 #include <cpu_features.h>
+
 
 static CpuFeatures _cpu_features = {0};
 const CpuFeatures *const cpu_features = &_cpu_features;
 
-c_attr(cold) void __deinit() {
+void _cold __deinit() {
     log_shutdown();
 }
 
-// TODO FIXME
-extern void gdt_setup();
-extern void idt_setup();
+static _cold _no_sse void enable_sse() {
+    // Chapter 13 of Intel's system programming guide.
+    auto cr4 = get_cr4();
+    auto cr0 = get_cr0();
 
-c_attr(cold) void __init(u32 multiboot_magic) {
+    cr4 |= 1<<9;    // Set CR4.OSFXSR[bit 9] = 1;
+    cr4 |= 1<<10;   // Set CR4.OSXMMEXCPT[bit 10] = 1;
+    cr0 &= ~(1<<2); // Clear CR0.EM[bit 2] = 0;
+    cr0 |= 1<<1;    // Set CR0.MP[bit 1] = 1;
+    cr0 &= ~(1<<3); // Clear CR0.TS[bit 3] = 0;
+
+    // The OSXMMEXCPT bit indicates we've provided an SIMD exception handler,
+    // which is true now.
+    //
+    // Clearing the TS bit is not mandatory, but maybe important for us:
+    // This supposedly prevents SSE and x87 instructions from throwing #NM.
+    // Intel says that the goal is to
+    // provide an opportunity for the kernel to save SSE and x87 state
+    // when applications call such instructions, but I don't care and it
+    // scares me more than anything else.
+
+    // Compiler barrier to force setting CR0 and CR4 nearly at the same time.
+    // Not sure if it's actually required, but doesn't hurt, and reflects my
+    // intent.
+    asm volatile("" : : : "memory");
+
+    set_cr4(cr4);
+    set_cr0(cr0);
+}
+
+// Called at the end of `__init` and when SSE is enabled. Prior to that
+// we must NOT do anything related to floating-point.
+// We need it as a separate function because `__init` is marked `_no_sse`.
+static _cold void __init_post_sse() {
+    irq0_set_timer_frequency(100.f);
+    // mouse_setup();
+}
+
+void _cold _no_sse __init(u32 multiboot_magic) {
     log_setup();
 
     logd("--- FerOS Build ", __TIMESTAMP__, " ---");
@@ -129,20 +162,10 @@ c_attr(cold) void __init(u32 multiboot_magic) {
         hang();
     }
 
-    // Enable SSE* extensions. Chapter 13 of Intel's system programming guide.
-    // NOTE: Do it before setting up GDT, IDT, etc, so we can use floats
-    // there with SSE.
-    auto cr4 = get_cr4();
-    auto cr0 = get_cr0();
-    cr4 |= 1<<9;    // Set CR4.OSFXSR[bit 9] = 1;
-    cr4 |= 1<<10;   // Set CR4.OSXMMEXCPT[bit 10] = 1; // Indicates we've provided an SIMD exception handler, which is true now.
-    cr0 &= ~(1<<2); // Clear CR0.EM[bit 2] = 0;
-    cr0 |= 1<<1;    // Set CR0.MP[bit 1] = 1;
-    cr0 &= ~(1<<3); // XXX Clear CR0.TS[bit 3] = 0; Not mentioned, but maybe important for us: prevents SSE and x87 instructions from throwing #NM
-    set_cr4(cr4);
-    set_cr0(cr0);
+    enable_sse();
 
     gdt_setup();
     idt_setup();
-}
 
+    __init_post_sse();
+}

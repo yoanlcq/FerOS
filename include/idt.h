@@ -27,6 +27,8 @@ extern const IdtPtr idt_ptr;
 
 
 // TODO put them somewhere else
+void idt_load();
+void _cold _no_sse idt_setup();
 
 u64 irq0_get_timer_ticks();
 f32 irq0_get_timer_frequency();
@@ -36,4 +38,5 @@ void irq0_set_timer_frequency(f32 hz);
 void irq0_timer_wait_ticks(u32 ticks);
 void sleep_ms(u32 ms);
 void sleep_s(u32 s);
+
 

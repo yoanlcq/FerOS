@@ -86,6 +86,9 @@
 #define TODO c_attr(warning("This is not implemented yet!"))
 #define inline_always inline c_attr(always_inline)
 // Also don't be tempted to define `always_inline` as well - won't work.
+#define _cold c_attr(cold)
+#define _dont_optimize c_attr(optimize("O0"))
+#define _no_sse c_attr(target("no-fxsr", "no-mmx", "no-sse", "no-sse2", "fpmath=387"))
 #define typeof __typeof__
 #define auto __auto_type // So modern omg
 #define let const auto   // Such Rust, much safe, wow
@@ -385,6 +388,15 @@ static inline_always void movsd(u32 *dst, const u32* src, u32 count) {
 // part, it's possible that these are some kind of unprintable ASCII chars.
 // This calls for a hexdump.
 
+// Super important note for these : DO NOT use "Nd" instead of just "d" for the 
+// constraints in `in*` and `out*` instructions, because GCC's optimizers may
+// discard the correct setting of `dx` and cause massive confusion.
+
+// About the naming convention: osdev.org says that the traditional names
+// for what we call `ind` and `outd` would be `inl` and `outl` respectively,
+// but I'd like to stick to our assembler's convention.
+// In some codebases these functions are named `inport*` and `outport*`.
+
 // For `outs*`:
 // - Not emitting a `cld` instruction, because we assume GCC keeps it cleared
 //   (it appears to be the case, as mentioned in a StackOverflow answer).
@@ -430,26 +442,24 @@ static inline_always void insd(u16 port, u32* data, usize count) {
     );
 }
 
-
 static inline_always void outb(u16 port, u8 data) {
     asm volatile (
         "out dx, al" asm_endl
-        : : "Nd"(port), "a"(data)
+        : : "d"(port), "a"(data)
     );
 }
 
 static inline_always void outw(u16 port, u16 data) {
     asm volatile (
         "out dx, ax" asm_endl
-        : : "Nd"(port), "a"(data)
+        : : "d"(port), "a"(data)
     );
 }
 
-// osdev.org says that the traditional name would be `outl`.
 static inline_always void outd(u16 port, u32 data) {
     asm volatile (
         "out dx, eax" asm_endl
-        : : "Nd"(port), "a"(data)
+        : : "d"(port), "a"(data)
     );
 }
 
@@ -457,7 +467,7 @@ static inline_always u8 inb(u16 port) {
     u8 data;
     asm volatile (
         "in al, dx" asm_endl
-        : "=a"(data) : "Nd"(port)
+        : "=a"(data) : "d"(port)
     );
     return data;
 }
@@ -466,17 +476,16 @@ static inline_always u16 inw(u16 port) {
     u16 data;
     asm volatile (
         "in ax, dx" asm_endl
-        : "=a"(data) : "Nd"(port)
+        : "=a"(data) : "d"(port)
     );
     return data;
 }
 
-// osdev.org says that the traditional name would be `inl`.
 static inline_always u32 ind(u16 port) {
     u32 data;
     asm volatile (
         "in eax, dx" asm_endl
-        : "=a"(data) : "Nd"(port)
+        : "=a"(data) : "d"(port)
     );
     return data;
 }
@@ -521,6 +530,7 @@ static inline_always void hlt() {
 // Halt the CPU. Could just be implemented with `for(;;);`, but is
 // intended to save power.
 static inline noreturn void hang() { asm volatile ("cli" asm_endl); for(;;) hlt(); }
+static inline noreturn void hang_preserving_interrupts() { for(;;) hlt(); }
 
 // WISH: Now we have SSE, we might as well write "memcpy_sse" functions
 static inline void memset     (void *mem, u8  value, usize size ) { stosb(      mem, value, size ); }
