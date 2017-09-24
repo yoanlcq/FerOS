@@ -17,7 +17,7 @@
 // when not in IA-32e mode.
 // `available_for_us`: Exactly as it says. We can use it to store a custom
 // bit.
-typedef struct c_attr(packed) {
+typedef struct _packed {
     u16 limit_low16;
     u16 base_low16;
     u8  base_middle8;
@@ -39,17 +39,16 @@ typedef struct c_attr(packed) {
 
 static_assert(sizeof(GdtEntry)==8, "");
 
-typedef struct c_attr(packed) {
+typedef struct _packed {
     u16 limit; // (sizeof gdt) - 1
     u32 base; // Base address
 } GdtPtr;
 
 static_assert(sizeof(GdtPtr)==6, "");
 
-void gdt_update();
 void gdt_setup();
+void gdt_load(); // Defined in assembly, src/gdt.S
 
 extern GdtEntry gdt[3];
 extern const GdtPtr gdt_ptr;
-
 

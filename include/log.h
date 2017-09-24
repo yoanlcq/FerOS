@@ -39,7 +39,8 @@ TODO void logd_cptr (const void* value);
 #else
 // Disable debug-logging
 
-#define logd(...)
-#define logd_(...)
+#define _allow_unused(x) (void)(x);
+#define logd_(...) do { MAP(_allow_unused, __VA_ARGS__) } while(0)
+#define logd(...) do { MAP(_allow_unused, __VA_ARGS__) } while(0)
 
 #endif

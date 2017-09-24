@@ -54,13 +54,14 @@ gccflags  := $(strip \
 	-mno-red-zone \
 	-mfxsr -mmmx -msse -msse2 -mfpmath=sse \
 	-Wl,-melf_i386 -Wl,--fatal-warnings \
-	-DIS_QEMU_GUEST \
+	-DQEMU_GUEST \
 )
 gcc_c_only_flags := -include __prelude.h
 asflags := $(strip \
 	-g --gstabs+ -L --fatal-warnings -Iinclude \
 	-msyntax=intel -mmnemonic=intel -mnaked-reg \
 )
+# Store it into a variable to "escape" the comma at the end for use in patsubst
 wa_prefix := -Wa,
 gcc_asflags := $(patsubst %,$(wa_prefix)%,$(asflags))
 ldlibs  := -lgcc

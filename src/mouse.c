@@ -7,9 +7,13 @@
 // to fully understand what's going on and properly test it.
 
 // TODO: Support hot-plugging and unplugging. Right now, we don't receive
-// any more IRQs after unplugging and re-plugging the mouse
+// any more IRQs after unplugging and re-plugging the mouse.
+// The plan is:
+// - Wait once, in __init, for the mouse, with a timeout;
+// - On a regular basis, wait with timeouts;
+// - When a mouse is plugged in, "it may send a 0xAA, then a 0x00 byte" .
 
-// TODO: Don't block indefinitely and support hot-pluggin instead.
+// TODO: Don't block indefinitely and support hot-plugging instead.
 void mouse_wait_in() {
     for(;;) {
         if(inb(0x64) & 1) {

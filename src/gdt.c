@@ -32,7 +32,7 @@ void _cold _no_sse gdt_setup() {
     entry.type = 0b0010;
     gdt[2] = entry;
 
-    gdt_update();
+    gdt_load();
 }
 
 

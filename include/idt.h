@@ -1,6 +1,6 @@
 #pragma once
 
-typedef struct c_attr(packed) {
+typedef struct _packed {
     u16 base_low16;
     u16 segment_selector;
     u8  always_zero;
@@ -14,7 +14,7 @@ typedef struct c_attr(packed) {
 
 static_assert(sizeof(IdtEntry)==8, "");
 
-typedef struct c_attr(packed) {
+typedef struct _packed {
     u16 limit;
     u32 base;
 } IdtPtr;
@@ -25,18 +25,6 @@ static_assert(sizeof(IdtPtr)==6, "");
 extern IdtEntry idt[256];
 extern const IdtPtr idt_ptr;
 
-
-// TODO put them somewhere else
 void idt_load();
-void _cold _no_sse idt_setup();
-
-u64 irq0_get_timer_ticks();
-f32 irq0_get_timer_frequency();
-void irq0_set_timer_frequency(f32 hz);
-
-
-void irq0_timer_wait_ticks(u32 ticks);
-void sleep_ms(u32 ms);
-void sleep_s(u32 s);
-
+void _cold idt_setup();
 

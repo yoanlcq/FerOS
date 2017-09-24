@@ -12,8 +12,9 @@
 // compile with the `-msse` and `-msse2` flags.
 //
 // But now GCC's optimizers will happily turn certain instructions into
-// SSE/SSE2 instructions, in _all_ source files, and if the CPU
-// doesn't _actually_ have SSE/SSE2 our OS will crash without notice.
+// SSE/SSE2 instructions, in _all_ source files (because we told it to), 
+// and if the CPU doesn't _actually_ have SSE/SSE2 our OS will crash without
+// notice.
 //
 // If only we had *some piece of code* which :
 // - Wouldn't be subject to potentially harmful "optimizations";
@@ -36,6 +37,7 @@
 #include <log.h>
 #include <gdt.h>
 #include <idt.h>
+#include <irq.h>
 #include <mouse.h>
 #include <cpu_features.h>
 
@@ -68,11 +70,6 @@ static _cold _no_sse void enable_sse() {
     // when applications call such instructions, but I don't care and it
     // scares me more than anything else.
 
-    // Compiler barrier to force setting CR0 and CR4 nearly at the same time.
-    // Not sure if it's actually required, but doesn't hurt, and reflects my
-    // intent.
-    asm volatile("" : : : "memory");
-
     set_cr4(cr4);
     set_cr0(cr0);
 }
@@ -82,7 +79,7 @@ static _cold _no_sse void enable_sse() {
 // We need it as a separate function because `__init` is marked `_no_sse`.
 static _cold void __init_post_sse() {
     irq0_set_timer_frequency(100.f);
-    // mouse_setup();
+    mouse_setup();
 }
 
 void _cold _no_sse __init(u32 multiboot_magic) {

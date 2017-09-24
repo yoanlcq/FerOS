@@ -86,6 +86,7 @@
 #define TODO c_attr(warning("This is not implemented yet!"))
 #define inline_always inline c_attr(always_inline)
 // Also don't be tempted to define `always_inline` as well - won't work.
+#define _packed c_attr(packed)
 #define _cold c_attr(cold)
 #define _dont_optimize c_attr(optimize("O0"))
 #define _no_sse c_attr(target("no-fxsr", "no-mmx", "no-sse", "no-sse2", "fpmath=387"))

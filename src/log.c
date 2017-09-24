@@ -1,8 +1,13 @@
 #include <log.h>
 #include <cvt.h>
 
+#ifdef LOGD_PORT1
 static Serial ser1 = {0};
+#ifdef LOGD_PORT2
 static Serial ser2 = {0};
+#endif
+#endif
+
 
 void log_setup() {
 #ifdef LOGD_PORT1

@@ -6,13 +6,14 @@
 #include <log.h>
 #include <cvt.h>
 
-// TODO: Are we in protected mode or enhanced mode ?
-// TODO: Clean-up stuff (esp. IDT, GDT, etc (and allow setting handlers from anywhere))
+// TODO: Allow setting handlers from anywhere
 // TODO: Be able to format hex (and any base really)
 // TODO: Have a proper, readable, exhaustive, memory map
 // TODO: Implement memory allocation;
 // TODO: Support mouse hot-plugging;
 // TODO: Implement the basics of the rasterizer (needs vectors, matrices, and sin cos)
+// TODO: Implement fonts
+// TODO: Test on real hardware (dont't define IS_QEMU_GUEST!)
 // TODO: Document our stuff and have a proper FAQ
 // TODO: See how to switch freely between Text mode and any VBE mode
 // TODO: Implement multi-threading;
@@ -264,7 +265,7 @@ void main(const MultibootInfo *mbi) {
                 usize len = mmap->len;
                 // Pay attention not to overwrite the physical memory at which
                 // our kernel is loaded.
-                // TODO: We should protect its memory.
+                // TODO: We should protect its memory, BUT not the stack.
                 // TODO: We should also protect the stack's bounds so we know
                 // when we get a stack overflow.
                 if(mem == (void*) &ks_phys_addr) {

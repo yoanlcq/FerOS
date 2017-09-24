@@ -164,7 +164,7 @@ typedef struct {
 
 } MultibootInfo;
 
-typedef struct c_attr(packed) {
+typedef struct _packed {
     u32 size;
     u64 addr;
     u64 len;
