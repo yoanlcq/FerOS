@@ -39,10 +39,18 @@
 	 *                   my desktop...
 	 *                   Also dramatically affects framerate.
 	 */
+#ifdef IS_QEMU_GUEST
 	.long 0 /* mbh_mode_type */
 	.long 320 /* mbh_width */
 	.long 200 /* mbh_height */
 	.long 32 /* mbh_depth */
+#else
+	/* NOTE: zero for a setting means "no preference". */
+	.long 0 /* mbh_mode_type */
+	.long 0 /* mbh_width */
+	.long 0 /* mbh_height */
+	.long 0 /* mbh_depth */
+#endif
 
 	.section .bss , "aw", @nobits
 	.global ks_stack_bottom
@@ -69,11 +77,13 @@ ks_stack_top:
 	# Save Multiboot magic in eax into edx (because al is overwritten below)
 	mov		edx, eax
 
+#ifdef IS_QEMU_GUEST
 	# Clear stack with the ASCII byte for 'S' (useful for memory dumps)
 	mov		al, 'S'
 	lea		edi, ks_stack_bottom
 	mov		ecx, (ks_stack_top - ks_stack_bottom)
 	rep stosb
+#endif
 
 	push	ebx		# 32-bit physical address to Multiboot information structure
 	push	edx		# Multiboot info magic, 0x2BADBOO2, saved from eax earlier

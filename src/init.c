@@ -79,16 +79,57 @@ static _cold _no_sse void enable_sse() {
 // We need it as a separate function because `__init` is marked `_no_sse`.
 static _cold void __init_post_sse() {
     irq0_set_timer_frequency(100.f);
+#ifndef IS_QEMU_GUEST
     mouse_setup();
+#endif
 }
 
-void _cold _no_sse __init(u32 multiboot_magic) {
+void _cold _no_sse __init(u32 multiboot_magic, const MultibootInfo *mbi) {
     log_setup();
 
     logd("--- FerOS Build ", __TIMESTAMP__, " ---");
 
     // FIXME: We've gotta switch to text mode so the user can see what
     // we have to say
+    // Or better, draw with out own bitmap font
+
+#ifndef IS_QEMU_GUEST
+    if(mbi->flags & MB_INFO_FRAMEBUFFER_INFO) {
+        if(mbi->framebuffer.type == MB_FRAMEBUFFER_TYPE_EGA_TEXT) {
+            auto cursor = VgaCursor_new(0, 0);
+            vga_puts_logd(cursor, "OK some stuff is working", VgaLightBlue, VgaBlack);
+        } else if(mbi->framebuffer.type == MB_FRAMEBUFFER_TYPE_INDEXED) {
+            u32 *mem = (void*) (uptr) mbi->framebuffer.addr;
+            mem[0] = 0xffffffffu;
+            mem[2] = 0xffffffffu;
+            mem[4] = 0xffffffffu;
+            mem[6] = 0xffffffffu;
+            mem[10] = 0xffffffffu;
+            mem[20] = 0xffffffffu;
+        } else if(mbi->framebuffer.type == MB_FRAMEBUFFER_TYPE_RGB) {
+            u8 *mem = (void*) (uptr) mbi->framebuffer.addr;
+            u8 level = 0xff;
+            i8 inc = -1;
+            for(;;) {
+                for(usize y=0 ; y<mbi->framebuffer.height ; ++y) {
+                    for(usize x=0 ; x<mbi->framebuffer.pitch ; ++x) {
+                        mem[y*mbi->framebuffer.pitch + x] = level;
+                    }
+                }
+                if(level >= 0xff) {
+                    inc = -1;
+                }
+                if(level <= 0x00) {
+                    inc = +1;
+                }
+                level += inc;
+            }
+        }
+    }
+    hang();
+#else
+    (void) mbi;
+#endif
 
     if(multiboot_magic != MB_BOOTLOADER_MAGIC) {
         auto cursor = VgaCursor_new(0, 0);

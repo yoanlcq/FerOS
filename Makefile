@@ -54,7 +54,7 @@ gccflags  := $(strip \
 	-mno-red-zone \
 	-mfxsr -mmmx -msse -msse2 -mfpmath=sse \
 	-Wl,-melf_i386 -Wl,--fatal-warnings \
-	-DQEMU_GUEST \
+	-DIS_QEMU_GUEST \
 )
 gcc_c_only_flags := -include __prelude.h
 asflags := $(strip \

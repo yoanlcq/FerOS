@@ -5,6 +5,8 @@
 #include <vbe3.h>
 #include <log.h>
 #include <cvt.h>
+#include <fonts.h>
+#include <sleep.h>
 
 // TODO: Allow setting handlers from anywhere
 // TODO: Be able to format hex (and any base really)
@@ -13,7 +15,6 @@
 // TODO: Support mouse hot-plugging;
 // TODO: Implement the basics of the rasterizer (needs vectors, matrices, and sin cos)
 // TODO: Implement fonts
-// TODO: Test on real hardware (dont't define IS_QEMU_GUEST!)
 // TODO: Document our stuff and have a proper FAQ
 // TODO: See how to switch freely between Text mode and any VBE mode
 // TODO: Implement multi-threading;
@@ -141,7 +142,45 @@ static void do_rgbmode_stuff(const MultibootInfo *mbi) {
                 */
             }
         }
+
         _mm_sfence();
+
+        // XXX Nearly everything following is super hacky temporary code!
+        // We want something cleaner and that works.
+
+        Rgba32 pixels[16*7*1];
+        /*
+        for(usize y=0 ; y < 16 ; ++y) {
+            for(usize x=0 ; x < 7*1 ; ++x) {
+                pixels[y*7*1 + x] = (Rgba32){ 0xff, 0xff, 0xff, 0xff };
+            }
+        }
+        for(usize y=0 ; y < 16 ; ++y) {
+            for(usize x=0 ; x < 7*1 ; ++x) {
+                let px = pixels[y*7*1 + x];
+                fbmem[y*fb->pitch + x*(bpp/8) + fb->r_bits_offset/8] = px.r;
+                fbmem[y*fb->pitch + x*(bpp/8) + fb->g_bits_offset/8] = px.g;
+                fbmem[y*fb->pitch + x*(bpp/8) + fb->b_bits_offset/8] = px.b;
+            }
+        }
+        */
+
+        const char txt[] = "9";
+        usize len = 1; //strlen(txt);
+        noto_mono_rasterize_rgba32(pixels, txt, (Rgba32){ .a = 0xff });
+
+        for(usize y=0 ; y < 16 ; ++y) {
+            for(usize x=0 ; x < len*7 ; ++x) {
+                let px = pixels[y*len*7 + x];
+                if(px.a == 0)
+                    continue;
+                fbmem[y*fb->pitch + x*(bpp/8) + fb->r_bits_offset/8] = px.r;
+                fbmem[y*fb->pitch + x*(bpp/8) + fb->g_bits_offset/8] = px.g;
+                fbmem[y*fb->pitch + x*(bpp/8) + fb->b_bits_offset/8] = px.b;
+            }
+        }
+        hang_preserving_interrupts();
+        //sleep_ms(16);
         // let t_end = _rdtsc();
         // logd("Frame ", frame_i, " filled within ", (t_end - t_start), " cycles.");
     }
