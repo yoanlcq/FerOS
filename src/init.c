@@ -33,13 +33,13 @@
 
 #include <multiboot.h>
 #include <string.h>
-#include <vga.h>
+#include <ega.h>
 #include <log.h>
 #include <gdt.h>
 #include <idt.h>
 #include <irq.h>
 #include <mouse.h>
-#include <cpu_features.h>
+#include <cpu.h>
 
 
 static CpuFeatures _cpu_features = {0};
@@ -96,8 +96,8 @@ void _cold _no_sse __init(u32 multiboot_magic, const MultibootInfo *mbi) {
 #ifndef IS_QEMU_GUEST
     if(mbi->flags & MB_INFO_FRAMEBUFFER_INFO) {
         if(mbi->framebuffer.type == MB_FRAMEBUFFER_TYPE_EGA_TEXT) {
-            auto cursor = VgaCursor_new(0, 0);
-            vga_puts_logd(cursor, "OK some stuff is working", VgaLightBlue, VgaBlack);
+            auto cursor = EgaCursor_new(0, 0);
+            ega_puts_logd(cursor, "OK some stuff is working", EgaLightBlue, EgaBlack);
         } else if(mbi->framebuffer.type == MB_FRAMEBUFFER_TYPE_INDEXED) {
             u32 *mem = (void*) (uptr) mbi->framebuffer.addr;
             mem[0] = 0xffffffffu;
@@ -132,14 +132,14 @@ void _cold _no_sse __init(u32 multiboot_magic, const MultibootInfo *mbi) {
 #endif
 
     if(multiboot_magic != MB_BOOTLOADER_MAGIC) {
-        auto cursor = VgaCursor_new(0, 0);
+        auto cursor = EgaCursor_new(0, 0);
         auto msg = "Invalid multiboot bootloader magic value!";
-        vga_puts_logd(cursor, msg, VgaLightRed, VgaBlack);
+        ega_puts_logd(cursor, msg, EgaLightRed, EgaBlack);
         cursor.y += 1;
         msg = "Because of this, the system won't attempt to boot.";
-        vga_puts_logd(cursor, msg, VgaLightGrey, VgaBlack);
+        ega_puts_logd(cursor, msg, EgaLightGrey, EgaBlack);
         cursor.y += 1;
-        vga_set_cursor(cursor);
+        ega_set_cursor(cursor);
         hang();
     }
 
@@ -178,24 +178,24 @@ void _cold _no_sse __init(u32 multiboot_magic, const MultibootInfo *mbi) {
     else if(!_cpu_features.has_sse2   ) { missing = "SSE2"; }
 
     if(missing) {
-        VgaCursor cursor = {0};
+        EgaCursor cursor = {0};
         auto msg = "Couldn't start the system, because your processor misses";
-        vga_puts_logd(cursor, msg, VgaLightRed, VgaBlack);
+        ega_puts_logd(cursor, msg, EgaLightRed, EgaBlack);
         cursor.y += 1;
         cursor.x  = 4;
-        vga_puts_logd(cursor, missing, VgaLightBlue, VgaBlack);
+        ega_puts_logd(cursor, missing, EgaLightBlue, EgaBlack);
         cursor.x  = 0;
         cursor.y += 1;
         msg = "which is a required feature!";
-        vga_puts_logd(cursor, msg, VgaLightRed, VgaBlack);
+        ega_puts_logd(cursor, msg, EgaLightRed, EgaBlack);
         cursor.y += 1;
         msg = "The required features are: x87 FPU, TSC, FXSR, MMX, SSE and SSE2.";
-        vga_puts_logd(cursor, msg, VgaLightRed, VgaBlack);
+        ega_puts_logd(cursor, msg, EgaLightRed, EgaBlack);
         cursor.y += 2;
         msg = "Welp, looks like your processor is way too old! Sorry.";
-        vga_puts_logd(cursor, msg, VgaLightGrey, VgaBlack);
+        ega_puts_logd(cursor, msg, EgaLightGrey, EgaBlack);
         cursor.y += 1;
-        vga_set_cursor(cursor);
+        ega_set_cursor(cursor);
 
         hang();
     }

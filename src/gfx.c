@@ -1,12 +1,8 @@
-#include <colors.h>
-#include <fonts.h>
+#include <gfx.h>
 #include <string.h>
 
-// The Noto Mono font, rasterized with GIMP and exported to XBM.
-// The set is ASCII-extended, which means one can directly look-up
-// characters with an unsigned byte.
 
-// XXX The way this function is implemented is temporary !
+// XXX The way this function is implemented is super hackish and temporary !
 // Note how i<1.
 void noto_mono_rasterize_rgba32(Rgba32 *pixels, const char *str, Rgba32 color) {
     const XbmMonoFont *f = &noto_mono;
@@ -28,6 +24,10 @@ void noto_mono_rasterize_rgba32(Rgba32 *pixels, const char *str, Rgba32 color) {
     }
 }
 
+// The Noto Mono font, rasterized with GIMP and exported to XBM.
+// The set is ASCII-extended, which means one can directly look-up
+// characters with an unsigned byte.
+//
 // Couple notes:
 // The image has been made such that its width is a multiple of 8. This is
 // because each image row is padded (with undefined bits) to fit into whole

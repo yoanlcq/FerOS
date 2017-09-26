@@ -1,18 +1,3 @@
-/*
- * Quick summary of the Multiboot header fields enabled with MB_AOUT_KLUDGE:
- *
- * u32 mbh_header_addr = address of Multiboot header (address of magic value)
- * u32 mbh_load_addr = beginning of text segment.
- *     Note this may include the Multiboot header itself. The bootloader only
- *     uses this to know where to start loading data, including the
- *     `.text`, `.rodata` and `.data` sections.
- *     IMPORTANT: Also the spec requires that `mbh_load_addr` <= `mbh_header_addr`.
- * u32 mbh_load_end_addr = end of text and data segment.
- * u32 mbh_bss_end_addr = end of bss segment (comes after last data segment
- *     (I believe ? It's not mentioned but looks safe to assume))
- * u32 mbh_entry_addr = address of kernel entry point
- */
-
 OUTPUT_FORMAT("elf32-i386")
 OUTPUT_ARCH(i386)
 ENTRY(_start)
@@ -48,7 +33,9 @@ SECTIONS {
         ks_data_end = .;
 	}
 
-	/* Read-write data (uninitialized) and stack. */
+	/* Read-write data (uninitialized) and stack.
+     * The data in this section is normally cleared to zero by multiboot
+     * bootloaders. */
 	.bss ALIGN(4K) : {
         mbh_load_end_addr = .;
         ks_bss_start = .;

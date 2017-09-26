@@ -90,6 +90,7 @@
 #define _cold c_attr(cold)
 #define _dont_optimize c_attr(optimize("O0"))
 #define _no_sse c_attr(target("no-fxsr", "no-mmx", "no-sse", "no-sse2", "fpmath=387"))
+#define _allow_unused(x) (c_attr(unused)(x))
 #define typeof __typeof__
 #define auto __auto_type // So modern omg
 #define let const auto   // Such Rust, much safe, wow
@@ -266,7 +267,17 @@ static_assert(CHAR_MAX == SCHAR_MAX, "We expect char to be signed!");
 // itself included in <x86intrin.h>.
 // They both can use the standard types like `int` and `size_t`.
 #include <stdlib.h>
+#include <string.h>
 #include <errno.h>
+
+void sleep_ms(u32 ms);
+void sleep_s(u32 s);
+
+// This one is NOT `static inline` like the other `memset*` further down
+// because GCC might emit calls to it when we declare big local zeroed arrays.
+void memset(void *mem, int byte_value, size_t size);
+
+
 
 //
 // Hardware intrinsics
@@ -534,7 +545,6 @@ static inline noreturn void hang() { asm volatile ("cli" asm_endl); for(;;) hlt(
 static inline noreturn void hang_preserving_interrupts() { for(;;) hlt(); }
 
 // WISH: Now we have SSE, we might as well write "memcpy_sse" functions
-static inline void memset     (void *mem, u8  value, usize size ) { stosb(      mem, value, size ); }
 static inline void memset_u8  (u8   *mem, u8  value, usize count) { stosb((u8 *)mem, value, count); }
 static inline void memset_i8  (i8   *mem, i8  value, usize count) { stosb((u8 *)mem, value, count); }
 static inline void memset_u16 (u16  *mem, u16 value, usize count) { stosw((u16*)mem, value, count); }

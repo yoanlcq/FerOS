@@ -1,3 +1,18 @@
+// Everything log-related - right now this defines the `logd()` and `logd_()`
+// macros, which intent is to log debugging information.
+// Under QEMU, this writes data to serial ports which are redirected to QEMU's
+// stdio and a file.
+//
+// `logd()` takes any number of arguments and prints them (thanks to the magic
+// of C11 generics, and the MAP() macro). The set of arguments is treated as
+// a single logging unit (or entry). In practice right now, it just means that
+// a `\n` is appended, but this might change in the future.
+//
+// For lack of a better name, `logd_()` does the same BUT the set of arguments
+// is only treated as a _fraction_ of a logging unit. This is for convenience.
+// This means that `logd_("foo"); log("bar")` do log "foobar" as a single
+// entry.
+
 #include <serial.h>
 
 #ifdef IS_QEMU_GUEST
@@ -9,8 +24,6 @@
 
 void log_setup();
 void log_shutdown();
-
-// TODO Document usage of logd() and logd_().
 
 #ifdef LOGD_PORT1
 
@@ -39,8 +52,8 @@ TODO void logd_cptr (const void* value);
 #else
 // Disable debug-logging
 
-#define _allow_unused(x) (void)(x);
-#define logd_(...) do { MAP(_allow_unused, __VA_ARGS__) } while(0)
-#define logd(...) do { MAP(_allow_unused, __VA_ARGS__) } while(0)
+#define _logd_ignore_arg(x) _allow_unused(x);
+#define logd_(...) do { MAP(_logd_ignore_arg, __VA_ARGS__) } while(0)
+#define logd(...)  do { MAP(_logd_ignore_arg, __VA_ARGS__) } while(0)
 
 #endif

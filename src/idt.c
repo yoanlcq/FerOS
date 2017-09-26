@@ -276,8 +276,6 @@ void irq0_timer_wait_ticks(u32 ticks) {
     }
 }
 
-#include <sleep.h>
-
 void sleep_ms(u32 ms) {
     irq0_timer_wait_ticks((ms/1000.f) * irq0_timer_frequency);
 }

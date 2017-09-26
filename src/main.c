@@ -1,15 +1,16 @@
-#include <kernel_sections.h>
+#include <ksections.h>
 #include <string.h>
 #include <multiboot.h>
-#include <vga.h>
-#include <vbe3.h>
+#include <ega.h>
+#include <vbe.h>
 #include <log.h>
 #include <cvt.h>
-#include <fonts.h>
-#include <sleep.h>
+#include <gfx.h>
 
+// TODO: Add the SIL open font license (maybe ??)
 // TODO: Allow setting handlers from anywhere
 // TODO: Be able to format hex (and any base really)
+// TODO: Be able to format floats and pointers
 // TODO: Have a proper, readable, exhaustive, memory map
 // TODO: Implement memory allocation;
 // TODO: Support mouse hot-plugging;
@@ -28,25 +29,25 @@ static void do_textmode_stuff(const MultibootInfo *mbi) {
 
     (void)mbi;
 
-    VgaCursor cursor = {0};
-    vga_clear();
-    vga_set_cursor(cursor);
+    EgaCursor cursor = {0};
+    ega_clear();
+    ega_set_cursor(cursor);
 
-    vga_puts_logd(cursor, "Looks like we only got a text mode. Welp...", VgaWhite, VgaBlack);
+    ega_puts_logd(cursor, "Looks like we only got a text mode. Welp...", EgaWhite, EgaBlack);
     cursor.y += 2;
-    vga_puts_logd(cursor, "Hello, kernel world! Have a rainbow.", VgaLightGreen, VgaBlack);
+    ega_puts_logd(cursor, "Hello, kernel world! Have a rainbow.", EgaLightGreen, EgaBlack);
     cursor.y += 1;
 
-    const VgaColor rainbow[] = { VgaRed, VgaBrown, VgaGreen, VgaCyan, VgaBlue, VgaMagenta };
+    const EgaColor rainbow[] = { EgaRed, EgaBrown, EgaGreen, EgaCyan, EgaBlue, EgaMagenta };
     for(usize i=0 ; i<countof(rainbow) ; ++i) {
-        vga_puts(cursor, " ", VgaWhite, rainbow[i]);
+        ega_puts(cursor, " ", EgaWhite, rainbow[i]);
         cursor.x += 1;
     }
 
     cursor.x = 0;
     cursor.y += 1;
 
-    vga_set_cursor(cursor);
+    ega_set_cursor(cursor);
 }
 
 #define lerp(a,b,t) ({ let _t = (t); (a)*(1-_t) + (b)*_t; })
@@ -273,7 +274,7 @@ void main(const MultibootInfo *mbi) {
     logd("* Mmap data      : ", (uptr)mbi->mmap.addr, " - ", ((uptr)mbi->mmap.addr)+mbi->mmap.length);
     logd("* VBE ctrl info  : ", (uptr)mbi->vbe.control_info, " - ", "???");
     logd("* VBE mode info  : ", (uptr)mbi->vbe.mode_info, " - ", "???");
-    logd("* VGA Text FB    : ", (uptr)VGA_FB, " - ", ((uptr)VGA_FB) + VGA_W*VGA_H*sizeof *VGA_FB);
+    logd("* EGA Text FB    : ", (uptr)EGA_FB, " - ", ((uptr)EGA_FB) + EGA_W*EGA_H*sizeof *EGA_FB);
     logd("* RGB framebuffer: ", (uptr)mbi->framebuffer.addr, " - ", ((uptr)mbi->framebuffer.addr) + mbi->framebuffer.height*mbi->framebuffer.pitch);
 
 

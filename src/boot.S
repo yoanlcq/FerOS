@@ -1,5 +1,5 @@
 /*
- * Declares a Multiboot header.
+ * Declares a Multiboot header and the initialization code.
  * https://www.gnu.org/software/grub/manual/multiboot/multiboot.html#boot_002eS
  */
 
@@ -16,7 +16,7 @@
 	.set mbh_flags,			(MB_MEMORY_INFO | MB_VIDEO_MODE)
 	.set mbh_checksum,		-(mbh_magic + mbh_flags)
 	
-	.section .text /* .multiboot */
+	.section .text /* Used to be `.multiboot` */
 	.balign 32
 .L_multiboot:
 	.long mbh_magic
@@ -36,7 +36,7 @@
 	 * mbh_mode_type: 1 => Text mode, 0 => Linear graphics mode.
 	 *                The Multiboot spec says it's only a hint.
 	 * mbh_width|height: Could be 1024x768, but I'd rather have it fit in 
-	 *                   my desktop...
+	 *                   my desktop.
 	 *                   Also dramatically affects framerate.
 	 */
 #ifdef IS_QEMU_GUEST
@@ -45,7 +45,10 @@
 	.long 200 /* mbh_height */
 	.long 32 /* mbh_depth */
 #else
-	/* NOTE: zero for a setting means "no preference". */
+	/* NOTE: zero for a setting means "no preference". This is what we should
+	 * do because on EFI we can only get a graphics mode and the width+height
+	 * can be completely different from documented VBE modes.
+	 */
 	.long 0 /* mbh_mode_type */
 	.long 0 /* mbh_width */
 	.long 0 /* mbh_height */
@@ -56,7 +59,6 @@
 	.global ks_stack_bottom
 ks_stack_bottom:
 	.skip 65536 # 64 Kib
-	#.skip 16384 # 16 Kib
 	.global ks_stack_top
 ks_stack_top:
 
@@ -87,10 +89,10 @@ ks_stack_top:
 
 	push	ebx		# 32-bit physical address to Multiboot information structure
 	push	edx		# Multiboot info magic, 0x2BADBOO2, saved from eax earlier
-	call	__init
+	call	__init	# __init(magic, info_ptr)
 
 	add		esp, 4		# Pop 0x2BADBOO2
-	call	main		# main(mb_info_ptr)
+	call	main		# main(info_ptr)
 	add		esp, 4		# Pop pointer to Multiboot info
 
 	call	__deinit

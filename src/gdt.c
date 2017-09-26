@@ -1,5 +1,10 @@
 #include <gdt.h>
 
+// The three descriptors are:
+// - The NULL descriptor     (offset 0x00);
+// - The kernel code segment (offset 0x08);
+// - The kernel data segment (offset 0x10);
+
 GdtEntry gdt[3] = {0};
 
 const GdtPtr gdt_ptr = {
@@ -34,5 +39,3 @@ void _cold _no_sse gdt_setup() {
 
     gdt_load();
 }
-
-
