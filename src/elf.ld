@@ -43,6 +43,16 @@ SECTIONS {
 		*(.bss*)
         ks_bss_end = .;
 	}
+
+    /DISCARD/ : {
+        *(.debug_*)
+        *(.rel.text.startup)
+        *(.rel.text)
+        *(.comment)
+        *(.eh_frame)
+        *(.stab)
+        *(.stabstr)
+    }
     ks_end = .;
     mbh_bss_end_addr = .;
     /* ^ Note that Multiboot bootloaders use this to clear the

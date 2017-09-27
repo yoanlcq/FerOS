@@ -6,6 +6,9 @@
 #include <log.h>
 #include <cvt.h>
 #include <gfx.h>
+#include <elf.h>
+
+
 
 // TODO: Add the SIL open font license (maybe ??)
 // TODO: Allow setting handlers from anywhere
@@ -145,39 +148,32 @@ static void do_rgbmode_stuff(const MultibootInfo *mbi) {
         }
 
         _mm_sfence();
+        sleep_ms(100);
 
-        // XXX Nearly everything following is super hacky temporary code!
-        // We want something cleaner and that works.
-
-        Rgba32 pixels[16*7*1];
-        /*
-        for(usize y=0 ; y < 16 ; ++y) {
-            for(usize x=0 ; x < 7*1 ; ++x) {
-                pixels[y*7*1 + x] = (Rgba32){ 0xff, 0xff, 0xff, 0xff };
-            }
+        const XbmMonoFont *f = &noto_mono;
+        const char txt[] = "Hello!";
+        const usize txtlen = strlen(txt);
+        Rgba txtpixels[f->char_w * f->h * txtlen];
+        for(usize i=0 ; i<sizeof txtpixels ; ++i) {
+            ((u8*) txtpixels)[i] = 0;
         }
-        for(usize y=0 ; y < 16 ; ++y) {
-            for(usize x=0 ; x < 7*1 ; ++x) {
-                let px = pixels[y*7*1 + x];
-                fbmem[y*fb->pitch + x*(bpp/8) + fb->r_bits_offset/8] = px.r;
-                fbmem[y*fb->pitch + x*(bpp/8) + fb->g_bits_offset/8] = px.g;
-                fbmem[y*fb->pitch + x*(bpp/8) + fb->b_bits_offset/8] = px.b;
-            }
-        }
-        */
+        assert_cmp(txtlen, ==, 6u, "We need a constant size for txtpixels!");
+        RgbaFb txtfb = {
+            .w = txtlen * f->char_w,
+            .h = f->h,
+            .pixels = txtpixels,
+            .depth = NULL
+        };
+        XbmMonoFont_rasterize(f, &txtfb, txt, txtlen, (Rgba){ .a = 1.0f });
 
-        const char txt[] = "9";
-        usize len = 1; //strlen(txt);
-        noto_mono_rasterize_rgba32(pixels, txt, (Rgba32){ .a = 0xff });
-
-        for(usize y=0 ; y < 16 ; ++y) {
-            for(usize x=0 ; x < len*7 ; ++x) {
-                let px = pixels[y*len*7 + x];
-                if(px.a == 0)
+        for(usize y=0 ; y < txtfb.h ; ++y) {
+            for(usize x=0 ; x < txtfb.w ; ++x) {
+                let px = txtfb.pixels[y*txtfb.w + x];
+                if(px.a <= 0.0f)
                     continue;
-                fbmem[y*fb->pitch + x*(bpp/8) + fb->r_bits_offset/8] = px.r;
-                fbmem[y*fb->pitch + x*(bpp/8) + fb->g_bits_offset/8] = px.g;
-                fbmem[y*fb->pitch + x*(bpp/8) + fb->b_bits_offset/8] = px.b;
+                fbmem[y*fb->pitch + x*(bpp/8) + fb->r_bits_offset/8] = px.r*0xff;
+                fbmem[y*fb->pitch + x*(bpp/8) + fb->g_bits_offset/8] = px.g*0xff;
+                fbmem[y*fb->pitch + x*(bpp/8) + fb->b_bits_offset/8] = px.b*0xff;
             }
         }
         hang_preserving_interrupts();
@@ -241,6 +237,10 @@ void main(const MultibootInfo *mbi) {
         );
     }
 
+    u32 max_addr = 0, max_addr_size = 0;
+    (void)max_addr;
+    (void)max_addr_size;
+
     if(mbi->flags & MB_INFO_ELF_SHDR) {
         let es = &(mbi->elf_sec);
         logd(
@@ -248,6 +248,22 @@ void main(const MultibootInfo *mbi) {
             "num = ", es->num, ", size = ", es->size, ", "
             "addr = ", es->addr, ", shndx = ", es->shndx
         );
+        const Elf32_Shdr *shdr = (Elf32_Shdr*) es->addr;
+        const Elf32_Shdr *shndx = &shdr[es->shndx];
+        for(usize i=0 ; i<es->num ; ++i) {
+            const Elf32_Shdr *cur = &shdr[i];
+            logd(
+                "> name = \"", &(((char*)shndx->addr)[cur->name]), "\""
+                ", type = ", cur->type,
+                ", addr = ", cur->addr,
+                ", offset = ", cur->offset,
+                ", size = ", cur->size
+            );
+            if(cur->addr > max_addr) {
+                max_addr = cur->addr;
+                max_addr_size = cur->size;
+            }
+        }
     }
 
     logd("&mbh_load_addr    = ", (uptr) &mbh_load_addr   );
@@ -272,8 +288,8 @@ void main(const MultibootInfo *mbi) {
     logd("* Bootloader name: ", (uptr)mbi->bootloader_name, " - ", ((uptr)mbi->bootloader_name) + strlen((char*)mbi->bootloader_name));
     logd("* Command line   : ", (uptr)mbi->cmdline, " - ", ((uptr)mbi->cmdline) + strlen((char*)mbi->cmdline));
     logd("* Mmap data      : ", (uptr)mbi->mmap.addr, " - ", ((uptr)mbi->mmap.addr)+mbi->mmap.length);
-    logd("* VBE ctrl info  : ", (uptr)mbi->vbe.control_info, " - ", "???");
-    logd("* VBE mode info  : ", (uptr)mbi->vbe.mode_info, " - ", "???");
+    logd("* VBE ctrl info  : ", (uptr)mbi->vbe.control_info, " - ", (uptr)mbi->vbe.control_info + sizeof (VbeInfoBlock));
+    logd("* VBE mode info  : ", (uptr)mbi->vbe.mode_info, " - ", (uptr) mbi->vbe.mode_info + sizeof(VbeModeInfoBlock));
     logd("* EGA Text FB    : ", (uptr)EGA_FB, " - ", ((uptr)EGA_FB) + EGA_W*EGA_H*sizeof *EGA_FB);
     logd("* RGB framebuffer: ", (uptr)mbi->framebuffer.addr, " - ", ((uptr)mbi->framebuffer.addr) + mbi->framebuffer.height*mbi->framebuffer.pitch);
 
@@ -309,12 +325,35 @@ void main(const MultibootInfo *mbi) {
                 // TODO: We should also protect the stack's bounds so we know
                 // when we get a stack overflow.
                 if(mem == (void*) &ks_phys_addr) {
-                    mem = (void*) &ks_end;
-                    len -= ((uptr) &ks_end) - ((uptr) &ks_phys_addr);
+                    mem = (void*) (0x1000000); // http://wiki.osdev.org/Memory_Map_(x86)
+                    len -= ((uptr) mem) - ((uptr) &ks_phys_addr);
                 }
+                // FIXME We need to know:
+                // - How to parse the ELF structure given by GRUB, which I
+                //   suspect describes how GRUB _decided_ to put the parts of
+                //   our kernel in memory;
+                // - Does GRUB use any relocation info from the ELF ?
+                //   This is related to --strip-all vs. --strip-debug.
+                //
+                // Answer from the Multiboot spec :
+                //     All sections are loaded, and the physical address
+                //     fields of the elf section header then refer to where
+                //     the sections are in memory (refer to the i386 elf
+                //     documentation for details as to how to read the section
+                //     header(s)).
+                // In short: The ks_* variables stop reflecting the reality of
+                // our kernel's locations as soon as it's loaded and executed,
+                // which is why our memset() below ends up overwriting some
+                // memory. `&ks_end` is NOT in fact the end of our kernel in
+                // memory.
+#if 1
                 logd("Claiming ", len, " bytes at ", (uptr) mem, "...");
-                memset(mem, 0xde, len);
+                for(usize i=0 ; i<len ; ++i) {
+                    mem[i] = 0xde;
+                }
                 logd("Done");
+#endif
+                sleep_ms(100);
             }
 
             mmap = (MultibootMmapEntry*) (((uptr)mmap) + mmap->size + sizeof mmap->size);

@@ -254,6 +254,11 @@ void isr_dispatch(IsrContext *ctx) {
     }
     isr.handler(ctx);
     if(i < 32) { // If it's a processor-generated exception, we halt for now.
+        logd("eip        = ", ctx->eip);
+        logd("user_esp   = ", ctx->user_esp);
+        logd("esp        = ", ctx->esp);
+        logd("ebp        = ", ctx->ebp);
+        logd("error code = ", ctx->error_code);
         logd("Hanging because it's assumed to be fatal.");
         hang();
     } else {

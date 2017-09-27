@@ -29,5 +29,11 @@ usize strlen(const char *s) {
 // See how <__prelude.h> would forbid us to use size_t. Make an exception here.
 #undef size_t
 void memset(void *mem, int byte_value, size_t size) {
+#if 0
     memset_u8(mem, byte_value, size);
+#else
+    for(size_t i=0 ; i<size ; ++i) {
+        ((u8*)mem)[i] = byte_value;
+    }
+#endif
 }

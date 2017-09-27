@@ -46,6 +46,9 @@ typedef struct {
     u32 depth;
 } MultibootHeader;
 
+// In short, `addr` points to `num` `Elf32_Shdr`s, each element in the array
+// being of size `size`.
+// `shndx` is the string table used as the index of names.
 typedef struct {
     u32 num;
     u32 size;

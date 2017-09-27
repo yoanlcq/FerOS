@@ -50,10 +50,11 @@ gccflags  := $(strip \
 	-ffreestanding -O3 -nostdlib -g -ggdb \
 	-fno-builtin -nostartfiles -nodefaultlibs -fno-exceptions \
 	-fno-stack-protector -static -fno-pic \
+	-fms-extensions \
 	-masm=intel \
 	-mno-red-zone \
 	-mfxsr -mmmx -msse -msse2 -mfpmath=sse \
-	-Wl,-melf_i386 -Wl,--fatal-warnings \
+	-Wl,-melf_i386 -Wl,--fatal-warnings -Wl,--orphan-handling=warn \
 	-DIS_QEMU_GUEST \
 )
 gcc_c_only_flags := -include __prelude.h
@@ -85,7 +86,7 @@ $(kernel_sym): $(kernel_dbg)
 $(kernel_elf): $(kernel_dbg) $(kernel_sym)
 	@mkdir -p $(@D)
 	@echo Strip $(kernel_dbg) into $@
-	@$(objcopy) --strip-all $< $@
+	@$(objcopy) --strip-debug $< $@
 	@echo Assert that $@ is multiboot-compliant
 	@grub-file --is-x86-multiboot $@ 
 	@du -sh $@

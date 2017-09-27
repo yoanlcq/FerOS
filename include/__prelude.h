@@ -90,7 +90,7 @@
 #define _cold c_attr(cold)
 #define _dont_optimize c_attr(optimize("O0"))
 #define _no_sse c_attr(target("no-fxsr", "no-mmx", "no-sse", "no-sse2", "fpmath=387"))
-#define _allow_unused(x) (c_attr(unused)(x))
+#define _allow_unused(x) ((void)(x))
 #define typeof __typeof__
 #define auto __auto_type // So modern omg
 #define let const auto   // Such Rust, much safe, wow
@@ -332,53 +332,48 @@ void memset(void *mem, int byte_value, size_t size);
 //     large block of memory."
 // True or not, it's interesting to implement.
 
+// FIXME They all stop working at -O3 !!!!!
+
 static inline_always void stosb(u8 *dst, u8 value, u32 count) {
     asm volatile (
         "rep stosb" asm_endl // "Fill (E)CX bytes at ES:[(E)DI] with AL".
-        : : "D"(dst), "c"(count), "a"(value) : "memory"
+        : "+c"(count), "+D"(dst) : "a"(value) : "memory", "cc"
     );
 }
 static inline_always void stosw(u16 *dst, u16 value, u32 count) {
     asm volatile (
         "rep stosw" asm_endl // "Fill (E)CX bytes at ES:[(E)DI] with AX".
-        : : "D"(dst), "c"(count), "a"(value) : "memory"
+        : "+c"(count), "+D"(dst) : "a"(value) : "memory", "cc"
     );
 }
 static inline_always void stosd(u32 *dst, u32 value, u32 count) {
     asm volatile (
         "rep stosd" asm_endl // "Fill (E)CX bytes at ES:[(E)DI] with EAX".
-        : : "D"(dst), "c"(count), "a"(value) : "memory"
+        : "+c"(count), "+D"(dst) : "a"(value) : "memory", "cc"
     );
 }
-#if 0 // defined(targets_x64)
-static inline_always void stosq(u64 *dst, u64 value, u64 count) {
-    asm volatile (
-        "rep stosq" asm_endl // "Fill RCX bytes at [RDI] with RAX".
-        : : "rdi"(dst), "rcx"(count), "rax"(value) : "memory"
-    );
-}
-#endif
 
 //
 // memcpy()-like intrinsics
 //
 
+
 static inline_always void movsb(u8 *dst, const u8* src, u32 count) {
     asm volatile (
         "rep movsb" asm_endl // Move ECX bytes from DS:[ESI] to ES:[EDI].
-        : : "D"(dst), "S"(src), "c"(count) : "memory"
+        : "+c"(count), "+D"(dst) : "S"(src) : "memory", "cc"
     );
 }
 static inline_always void movsw(u16 *dst, const u16* src, u32 count) {
     asm volatile (
         "rep movsw" asm_endl // Move ECX words from DS:[ESI] to ES:[EDI].
-        : : "D"(dst), "S"(src), "c"(count) : "memory"
+        : "+c"(count), "+D"(dst) : "S"(src) : "memory", "cc"
     );
 }
 static inline_always void movsd(u32 *dst, const u32* src, u32 count) {
     asm volatile (
         "rep movsd" asm_endl // Move ECX doublewords from DS:[ESI] to ES:[EDI].
-        : : "D"(dst), "S"(src), "c"(count) : "memory"
+        : "+c"(count), "+D"(dst) : "S"(src) : "memory", "cc"
     );
 }
 
@@ -420,58 +415,58 @@ static inline_always void movsd(u32 *dst, const u32* src, u32 count) {
 static inline_always void outsb(u16 port, const u8* data, usize count) {
     asm volatile (
         "rep outsb" asm_endl
-        : : "d"(port), "S"(data), "c"(count)
+        : "+c"(count), "+S"(data) : "d"(port) : "memory", "cc"
     );
 }
 static inline_always void outsw(u16 port, const u16* data, usize count) {
     asm volatile (
         "rep outsw" asm_endl
-        : : "d"(port), "S"(data), "c"(count)
+        : "+c"(count), "+S"(data) : "d"(port) : "memory", "cc"
     );
 }
 static inline_always void outsd(u16 port, const u32* data, usize count) {
     asm volatile (
         "rep outsd" asm_endl
-        : : "d"(port), "S"(data), "c"(count)
+        : "+c"(count), "+S"(data) : "d"(port) : "memory", "cc"
     );
 }
 static inline_always void insb(u16 port, u8* data, usize count) {
     asm volatile (
         "rep insb" asm_endl
-        : : "d"(port), "D"(data), "c"(count)
+        : "+c"(count), "+D"(data) : "d"(port) : "memory"
     );
 }
 static inline_always void insw(u16 port, u16* data, usize count) {
     asm volatile (
         "rep insw" asm_endl
-        : : "d"(port), "D"(data), "c"(count)
+        : "+c"(count), "+D"(data) : "d"(port) : "memory"
     );
 }
 static inline_always void insd(u16 port, u32* data, usize count) {
     asm volatile (
         "rep insd" asm_endl
-        : : "d"(port), "D"(data), "c"(count)
+        : "+c"(count), "+D"(data) : "d"(port) : "memory"
     );
 }
 
 static inline_always void outb(u16 port, u8 data) {
     asm volatile (
         "out dx, al" asm_endl
-        : : "d"(port), "a"(data)
+        : : "d"(port), "a"(data) : "memory"
     );
 }
 
 static inline_always void outw(u16 port, u16 data) {
     asm volatile (
         "out dx, ax" asm_endl
-        : : "d"(port), "a"(data)
+        : : "d"(port), "a"(data) : "memory"
     );
 }
 
 static inline_always void outd(u16 port, u32 data) {
     asm volatile (
         "out dx, eax" asm_endl
-        : : "d"(port), "a"(data)
+        : : "d"(port), "a"(data) : "memory"
     );
 }
 
@@ -479,7 +474,7 @@ static inline_always u8 inb(u16 port) {
     u8 data;
     asm volatile (
         "in al, dx" asm_endl
-        : "=a"(data) : "d"(port)
+        : "=a"(data) : "d"(port) : "memory"
     );
     return data;
 }
@@ -488,7 +483,7 @@ static inline_always u16 inw(u16 port) {
     u16 data;
     asm volatile (
         "in ax, dx" asm_endl
-        : "=a"(data) : "d"(port)
+        : "=a"(data) : "d"(port) : "memory"
     );
     return data;
 }
@@ -497,7 +492,7 @@ static inline_always u32 ind(u16 port) {
     u32 data;
     asm volatile (
         "in eax, dx" asm_endl
-        : "=a"(data) : "d"(port)
+        : "=a"(data) : "d"(port) : "memory"
     );
     return data;
 }
@@ -517,7 +512,7 @@ static inline_always u32 get_cr##x() { \
 static inline_always void set_cr##x(u32 val) { \
     asm volatile ( \
         "mov cr" #x ", %0" asm_endl \
-        : : "r"(val) \
+        : : "r"(val) : "memory" \
     ); \
 }
 def_getset_cr(0)

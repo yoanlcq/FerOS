@@ -55,10 +55,17 @@
 	.long 0 /* mbh_depth */
 #endif
 
+	# XXX last bug has shown that stack and code overlap, which doesn't
+	# happen if we put the stack in the text section.
+#if 0
 	.section .bss , "aw", @nobits
+#else
+	.section .text
+#endif
+	.balign 64
 	.global ks_stack_bottom
 ks_stack_bottom:
-	.skip 65536 # 64 Kib
+	.skip 4*65536 # 4*64 Kib
 	.global ks_stack_top
 ks_stack_top:
 
@@ -79,7 +86,7 @@ ks_stack_top:
 	# Save Multiboot magic in eax into edx (because al is overwritten below)
 	mov		edx, eax
 
-#ifdef IS_QEMU_GUEST
+#if 0 /* defined(IS_QEMU_GUEST) */
 	# Clear stack with the ASCII byte for 'S' (useful for memory dumps)
 	mov		al, 'S'
 	lea		edi, ks_stack_bottom

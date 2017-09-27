@@ -2,24 +2,46 @@
 #include <string.h>
 
 
-// XXX The way this function is implemented is super hackish and temporary !
-// Note how i<1.
-void noto_mono_rasterize_rgba32(Rgba32 *pixels, const char *str, Rgba32 color) {
-    const XbmMonoFont *f = &noto_mono;
-    const usize pitch = /*strlen(str)*/ 1 * f->char_w;
-    for(usize i=0 ; i<1 ; ++i) {
-        u8 ascii = (u8) str[i];
+// TODO Improve this with non-temporal SIMD instructions, and sfence.
+void RgbaFb_blend(
+    RgbaFb *dst, FbArea dstarea, 
+    const RgbaFb *src, Vec2u srcpos,
+    BlendOp blend, DepthTest depthtest
+) {
+    (void) blend;
+    (void) depthtest;
+    assert_cmp(dstarea.x + dstarea.w, <=, dst->w, "");
+    assert_cmp(dstarea.y + dstarea.h, <=, dst->h, "");
+    assert_cmp(srcpos .x + dstarea.w, <=, src->w, "");
+    assert_cmp(srcpos .y + dstarea.h, <=, src->h, "");
+    for(usize dy=dstarea.y, sy=srcpos.y ; dy < dstarea.h ; ++dy, ++sy) {
+        for(usize dx=dstarea.x, sx=srcpos.x ; dx < dstarea.w ; ++dx, ++sx) {
+            dst->pixels[dy * dst->w + dx] = src->pixels[sy * src->w + sx];
+        }
+    }
+}
 
-        for(usize y=0 ; y < f->h ; ++y) {
-            for(usize x=0 ; x < f->char_w ; ++x) {
-                usize bit_offset = y * f->w + ascii * f->char_w + x;
-                usize bytes = bit_offset / 8;
-                usize bits  = bit_offset % 8;
-                bool is_lit = !(f->bits[bytes] & (1<<bits));
-                logd_(is_lit ? "1" : "0");
-                pixels[y * pitch + i * f->char_w + x] = is_lit ? color : (Rgba32){0};
+void XbmMonoFont_rasterize(const XbmMonoFont *f, RgbaFb *dst, const char *str, usize str_len, Rgba color) {
+
+    assert_cmp(str_len, <=, strlen(str), "");
+    
+    for(usize si=0 ; si < str_len && str[si] ; ++si) {
+        u8 ascii = (u8) str[si];
+
+        for(usize sy=0 ; sy < f->h ; ++sy) {
+            for(usize sx=0 ; sx < f->char_w ; ++sx) {
+                // The "%8" mess just pads width to the next multiple of 8, if
+                // width isn't already a multiple of 8.
+                // This is because how each row is padded to fit a byte
+                // boundary in XBM data.
+                usize bit_i = sy * (f->w + (8-(f->w%8))%8) + ascii * f->char_w + sx;
+                usize skip_bytes = bit_i / 8;
+                usize skip_bits  = bit_i % 8;
+                bool is_lit = !(f->bits[skip_bytes] & (1<<skip_bits));
+                // logd_(is_lit ? "1" : "0");
+                dst->pixels[sy * dst->w + si * f->char_w + sx] = is_lit ? color : (Rgba){0};
             }
-            logd("");
+            // logd("");
         }
     }
 }
