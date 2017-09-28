@@ -54,7 +54,7 @@ gccflags  := $(strip \
 	-masm=intel \
 	-mno-red-zone \
 	-mfxsr -mmmx -msse -msse2 -mfpmath=sse \
-	-Wl,-melf_i386 -Wl,--fatal-warnings -Wl,--orphan-handling=warn \
+	-Wl,-melf_i386 -Wl,--fatal-warnings \
 	-DIS_QEMU_GUEST \
 )
 gcc_c_only_flags := -include __prelude.h

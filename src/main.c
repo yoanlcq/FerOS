@@ -8,8 +8,6 @@
 #include <gfx.h>
 #include <elf.h>
 
-
-
 // TODO: Add the SIL open font license (maybe ??)
 // TODO: Allow setting handlers from anywhere
 // TODO: Be able to format hex (and any base really)
@@ -315,7 +313,7 @@ void main(const MultibootInfo *mbi) {
             case MB_MEMORY_NVS             : logd("NVS"); break;
             case MB_MEMORY_BADRAM          : logd("Bad RAM"); break;
             }
-            assert_cmp((uptr)&ks_phys_addr, ==, 0x100000u, "");
+
             if(mmap->type == MB_MEMORY_AVAILABLE && mmap->addr >= (uptr)&ks_phys_addr) {
                 u8 *mem = (u8*) (uptr) mmap->addr;
                 usize len = mmap->len;
@@ -324,35 +322,17 @@ void main(const MultibootInfo *mbi) {
                 // TODO: We should protect its memory, BUT not the stack.
                 // TODO: We should also protect the stack's bounds so we know
                 // when we get a stack overflow.
+                // FIXME: This is NOT an accurate way of claiming memory on
+                // real hardware!
                 if(mem == (void*) &ks_phys_addr) {
-                    mem = (void*) (0x1000000); // http://wiki.osdev.org/Memory_Map_(x86)
+                    mem = (void*) (max_addr + max_addr_size);
                     len -= ((uptr) mem) - ((uptr) &ks_phys_addr);
                 }
-                // FIXME We need to know:
-                // - How to parse the ELF structure given by GRUB, which I
-                //   suspect describes how GRUB _decided_ to put the parts of
-                //   our kernel in memory;
-                // - Does GRUB use any relocation info from the ELF ?
-                //   This is related to --strip-all vs. --strip-debug.
-                //
-                // Answer from the Multiboot spec :
-                //     All sections are loaded, and the physical address
-                //     fields of the elf section header then refer to where
-                //     the sections are in memory (refer to the i386 elf
-                //     documentation for details as to how to read the section
-                //     header(s)).
-                // In short: The ks_* variables stop reflecting the reality of
-                // our kernel's locations as soon as it's loaded and executed,
-                // which is why our memset() below ends up overwriting some
-                // memory. `&ks_end` is NOT in fact the end of our kernel in
-                // memory.
-#if 1
                 logd("Claiming ", len, " bytes at ", (uptr) mem, "...");
                 for(usize i=0 ; i<len ; ++i) {
                     mem[i] = 0xde;
                 }
                 logd("Done");
-#endif
                 sleep_ms(100);
             }
 

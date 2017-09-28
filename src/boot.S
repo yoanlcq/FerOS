@@ -13,7 +13,11 @@
 
 	.section .rodata
 	.set mbh_magic,			0x1BADB002
+#ifdef AOUT_KLUDGE
+	.set mbh_flags,			(MB_MEMORY_INFO | MB_VIDEO_MODE | MB_AOUT_KLUDGE)
+#else
 	.set mbh_flags,			(MB_MEMORY_INFO | MB_VIDEO_MODE)
+#endif
 	.set mbh_checksum,		-(mbh_magic + mbh_flags)
 	
 	.section .text /* Used to be `.multiboot` */
@@ -26,11 +30,19 @@
 	 * MB_AOUT_KLUDGE-enabled fields. Symbols not defined in this file are
 	 * set by the linker (see src/elf.ld).
 	 */
+#ifdef AOUT_KLUDGE
 	.long .L_multiboot /* mbh_header_addr */
 	.long mbh_load_addr
 	.long mbh_load_end_addr
 	.long mbh_bss_end_addr
 	.long _start /* mbh_entry_addr */
+#else
+	.long 0
+	.long 0
+	.long 0
+	.long 0
+	.long 0
+#endif
 	/* 
 	 * The following are only used if the MB_VIDEO_MODE flag is set.
 	 * mbh_mode_type: 1 => Text mode, 0 => Linear graphics mode.
@@ -39,7 +51,7 @@
 	 *                   my desktop.
 	 *                   Also dramatically affects framerate.
 	 */
-#ifdef IS_QEMU_GUEST
+#if 0 /* defined(IS_QEMU_GUEST) */
 	.long 0 /* mbh_mode_type */
 	.long 320 /* mbh_width */
 	.long 200 /* mbh_height */
@@ -55,14 +67,7 @@
 	.long 0 /* mbh_depth */
 #endif
 
-	# XXX last bug has shown that stack and code overlap, which doesn't
-	# happen if we put the stack in the text section.
-#if 0
 	.section .bss , "aw", @nobits
-#else
-	.section .text
-#endif
-	.balign 64
 	.global ks_stack_bottom
 ks_stack_bottom:
 	.skip 4*65536 # 4*64 Kib
@@ -75,9 +80,17 @@ ks_stack_top:
 	# General note: Take care to preserve eax and ebx until calls to __init
 	# and main!
 
-	# Initialize stack pointer
-	mov		esp, ks_stack_top
-	mov		ebp, ks_stack_top	# Not strictly needed, but convenient
+	# Initialize stack registers. IMPORTANT: This used to use `mov` instead
+	# of `lea` and while it _appeared_ to work for a long time, it actually
+	# ended up loading a random address high enough to fall into zeroed RAM.
+	# This was the source of a shit-ton of confusing bugs and tears of sorrow.
+	# At the end of the day, inspection though GDB with `info reg` showed
+	# that `esp` and `ebp` were NOT set to the actual address of the stack's
+	# top.
+	# This was frickin horrendous. I don't want to have to go through this kind
+	# of sh!t ever again.
+	lea		esp, ks_stack_top
+	lea		ebp, ks_stack_top	# Not strictly needed, but convenient
 
 	# Reset EFLAGS
 	pushd	0
@@ -86,7 +99,7 @@ ks_stack_top:
 	# Save Multiboot magic in eax into edx (because al is overwritten below)
 	mov		edx, eax
 
-#if 0 /* defined(IS_QEMU_GUEST) */
+#if defined(IS_QEMU_GUEST)
 	# Clear stack with the ASCII byte for 'S' (useful for memory dumps)
 	mov		al, 'S'
 	lea		edi, ks_stack_bottom
