@@ -86,7 +86,7 @@ $(kernel_sym): $(kernel_dbg)
 $(kernel_elf): $(kernel_dbg) $(kernel_sym)
 	@mkdir -p $(@D)
 	@echo Strip $(kernel_dbg) into $@
-	@$(objcopy) --strip-debug $< $@
+	@$(objcopy) --strip-all $< $@
 	@echo Assert that $@ is multiboot-compliant
 	@grub-file --is-x86-multiboot $@ 
 	@du -sh $@
