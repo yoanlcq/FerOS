@@ -8,6 +8,8 @@
 #include <gfx.h>
 #include <elf.h>
 
+// TODO: Add a high-precision timer to measure perf and wall clock
+// TODO: Finish the implementation of fonts and improve blitting API
 // TODO: Add the SIL open font license (maybe ??)
 // TODO: Allow setting handlers from anywhere
 // TODO: Be able to format hex (and any base really)
@@ -16,7 +18,6 @@
 // TODO: Implement memory allocation;
 // TODO: Support mouse hot-plugging;
 // TODO: Implement the basics of the rasterizer (needs vectors, matrices, and sin cos)
-// TODO: Implement fonts
 // TODO: Document our stuff and have a proper FAQ
 // TODO: See how to switch freely between Text mode and any VBE mode
 // TODO: Implement multi-threading;
@@ -149,33 +150,33 @@ static void do_rgbmode_stuff(const MultibootInfo *mbi) {
         sleep_ms(100);
 
         const XbmMonoFont *f = &noto_mono;
-        const char txt[] = "Hello!";
-        const usize txtlen = strlen(txt);
-        Rgba txtpixels[f->char_w * f->h * txtlen];
-        for(usize i=0 ; i<sizeof txtpixels ; ++i) {
-            ((u8*) txtpixels)[i] = 0;
-        }
-        assert_cmp(txtlen, ==, 6u, "We need a constant size for txtpixels!");
-        RgbaFb txtfb = {
-            .w = txtlen * f->char_w,
-            .h = f->h,
-            .pixels = txtpixels,
-            .depth = NULL
-        };
-        XbmMonoFont_rasterize(f, &txtfb, txt, txtlen, (Rgba){ .a = 1.0f });
+        const char* txtlines[] = { "Hello!", "Goodbye!" };
+        for(usize i=0 ; i<countof(txtlines) ; ++i) {
+            const char *txt = txtlines[i];
+            const usize txtlen = strlen(txt);
+            Rgba txtpixels[f->char_w * f->h * txtlen];
+            RgbaFb txtfb = {
+                .w = txtlen * f->char_w,
+                .h = f->h,
+                .pixels = txtpixels,
+                .depth = NULL
+            };
+            XbmMonoFont_rasterize(f, &txtfb, txt, txtlen, (Rgba){ .a = 1.0f });
 
-        for(usize y=0 ; y < txtfb.h ; ++y) {
-            for(usize x=0 ; x < txtfb.w ; ++x) {
-                let px = txtfb.pixels[y*txtfb.w + x];
-                if(px.a <= 0.0f)
-                    continue;
-                fbmem[y*fb->pitch + x*(bpp/8) + fb->r_bits_offset/8] = px.r*0xff;
-                fbmem[y*fb->pitch + x*(bpp/8) + fb->g_bits_offset/8] = px.g*0xff;
-                fbmem[y*fb->pitch + x*(bpp/8) + fb->b_bits_offset/8] = px.b*0xff;
+            for(usize y=0 ; y < txtfb.h ; ++y) {
+                for(usize x=0 ; x < txtfb.w ; ++x) {
+                    let px = txtfb.pixels[y*txtfb.w + x];
+                    if(px.a <= 0.0f)
+                        continue;
+                    let dy = i*f->h + y;
+                    fbmem[dy*fb->pitch + x*(bpp/8) + fb->r_bits_offset/8] = px.r*0xff;
+                    fbmem[dy*fb->pitch + x*(bpp/8) + fb->g_bits_offset/8] = px.g*0xff;
+                    fbmem[dy*fb->pitch + x*(bpp/8) + fb->b_bits_offset/8] = px.b*0xff;
+                }
             }
         }
         hang_preserving_interrupts();
-        //sleep_ms(16);
+        // sleep_ms(16);
         // let t_end = _rdtsc();
         // logd("Frame ", frame_i, " filled within ", (t_end - t_start), " cycles.");
     }
