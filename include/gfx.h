@@ -1,86 +1,93 @@
 #pragma once
 
-typedef union {
-    __m128 m;
-    struct _packed { f32 x, y, z, w; };
-} Vec4;
-
-static_assert(alignof(Vec4) == alignof(__m128), "");
-static_assert( sizeof(Vec4) ==  sizeof(__m128), "");
-
-typedef union {
-    __m128 m;
-    struct _packed { f32 r, g, b, a; };
-} Rgba;
-
-static_assert(alignof(Rgba) == alignof(__m128), "");
-static_assert( sizeof(Rgba) ==  sizeof(__m128), "");
-
-typedef struct _packed { u8 r, g, b;    } Rgb24 ;
-typedef struct _packed { u8 r, g, b, a; } Rgba32;
+#include <vmath.h>
 
 typedef struct {
-    u32 x, y;
-} Vec2u;
-
-typedef struct {
-    u32 w, h;
-} Extent2u;
-
-typedef struct {
-    Vec2u;
-    Extent2u;
-} FbArea;
-
-typedef struct {
-    u8 bit_mask, bit_position;
-} BitMaskPosition;
-
-typedef struct {
-    void *data;
-    Extent2u extent;
+    void *pixels;
     u32 pitch;
-    BitMaskPosition r, g, b;
-    u32 bpp;
-} VbeFb;
+    union {
+        Extent2u;
+        Extent2u extent;
+    };
+    u32 bits_per_pixel; // solve ambiguity, "bpp" could mean "bytes per pixel".
+    struct {
+        u32 num_bits, bits_offset;
+    } r, g, b;
+} VbeRgbFb;
 
 typedef struct {
-    Extent2u;
+    union {
+        Extent2u;
+        Extent2u extent;
+    };
     Rgba *pixels;
-    Vec4 *depth;
+    Vec4 *depth; // Array of depth values for 4 fragments
 } RgbaFb;
 
-// Type-safe enum
-typedef struct { u8 enumval; } DepthTest;
-typedef struct { u8 enumval; } BlendOp;
-#define DepthAlways ((DepthTest){0})
-#define DepthBelow  ((DepthTest){1})
-#define BlendCopy   ((BlendOp){0})
-#define BlendAlpha  ((BlendOp){1})
-#define BlendMul    ((BlendOp){2})
+typedef struct {
+    union {
+        Vec2u;
+        Vec2u position;
+    };
+    union {
+        Extent2u;
+        Extent2u extent;
+    };
+} FbArea;
 
-void RgbaFb_blend(
-    RgbaFb *dst, FbArea dstarea,
-    const RgbaFb *src, Vec2u srcpos,
-    BlendOp blend, DepthTest test
-);
 
+typedef struct { 
+    enum {
+        BlendCopy,
+        BlendAlpha,
+        BlendMul
+    } enumval;
+} BlendOp;
 
 typedef struct {
-    u16 w, h;
-    Rgb24 pixels[];
-} Rgb24Image;
-
-typedef struct {
-    u16 w, h;
-    Rgba32 pixels[];
-} Rgba32Image;
+    enum {
+        DepthAlways,
+        DepthBelow,
+        DepthBelowOrEqual
+    } enumval;
+} DepthTest;
 
 typedef struct {
     usize w, h, char_w;
-    u8 bits[];
+    u8 *bits;
 } XbmMonoFont;
+
 
 extern const XbmMonoFont noto_mono;
 
-void XbmMonoFont_rasterize(const XbmMonoFont *f, RgbaFb *dst, const char *str, usize str_len, Rgba color);
+void XbmMonoFont_rasterize(
+    const XbmMonoFont *f, RgbaFb *dst,
+    const char *str, usize str_len, Rgba color
+);
+
+void RgbaFb_blend(
+    RgbaFb *dst, Vec2u dst_start,
+    const RgbaFb *src, Vec2u src_start,
+    Extent2u size, BlendOp blend_op, DepthTest depth_test
+);
+
+void VbeRgbFb_copy_RgbaFb(
+    VbeRgbFb *restrict dst, Vec2u dst_start,
+    const RgbaFb *restrict src, Vec2u src_start,
+    Extent2u size
+);
+
+// NOTE: Everything about what follows sucks in its own way. It's only to get
+// the basics going.
+
+typedef struct {
+    Vec4 position;
+    Rgba color;
+} Vertex;
+
+typedef union {
+    struct { Vertex v0, v1, v2; };
+    Vertex v[3];
+} Triangle;
+
+void RgbaFb_rasterize(RgbaFb dst, const Triangle *tri, usize count);

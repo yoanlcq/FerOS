@@ -1,23 +1,139 @@
 #include <gfx.h>
 #include <string.h>
 
+// WISH: Use non-temporal store instructions
+// _mm_stream_si128 (SSE2)
+// _mm_stream_pd (SSE2)
+// _mm_stream_ps (SSE)
+// _mm_stream_pi (MMX)
+// _mm_stream_si64 (only in 64-bit mode)
+// _mm_stream_si32 (all modes)
+
+
+// Returns:
+//  < 0: `c` lies in the half-space right of segment `ab`.
+// == 0: `c` lies in the infinite line along segment `ab`.
+//  > 0: `c` lies in the half-space left of segment `ab`.
+static inline float orient2d(Vec2 a, Vec2 b, Vec2 c) {
+    // WISH: We can simplify so it compiles to fewer instructions.
+    return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+}
+
+// TODO: Make this generic
+static inline float abs(float a) {
+    return a < 0 ? -a : a;
+}
+
+static inline float Triangle_area(Vec2 a, Vec2 b, Vec2 c) {
+    return abs(orient2d(a, b, c))/2.0f;
+}
+
+void RgbaFb_rasterize(RgbaFb dst, const Triangle *tri, usize count) {
+    (void) dst;
+    (void) tri;
+    (void) count;
+    // TODO
+}
 
 // TODO Improve this with non-temporal SIMD instructions, and sfence.
 void RgbaFb_blend(
-    RgbaFb *dst, FbArea dstarea, 
-    const RgbaFb *src, Vec2u srcpos,
-    BlendOp blend, DepthTest depthtest
+    RgbaFb *dst, Vec2u dst_start,
+    const RgbaFb *src, Vec2u src_start,
+    Extent2u size, BlendOp blend_op, DepthTest depth_test
 ) {
-    (void) blend;
-    (void) depthtest;
-    assert_cmp(dstarea.x + dstarea.w, <=, dst->w, "");
-    assert_cmp(dstarea.y + dstarea.h, <=, dst->h, "");
-    assert_cmp(srcpos .x + dstarea.w, <=, src->w, "");
-    assert_cmp(srcpos .y + dstarea.h, <=, src->h, "");
-    for(usize dy=dstarea.y, sy=srcpos.y ; dy < dstarea.h ; ++dy, ++sy) {
-        for(usize dx=dstarea.x, sx=srcpos.x ; dx < dstarea.w ; ++dx, ++sx) {
-            dst->pixels[dy * dst->w + dx] = src->pixels[sy * src->w + sx];
+    assert_cmp(dst_start.x + size.w, <=, dst->w, "");
+    assert_cmp(dst_start.y + size.h, <=, dst->h, "");
+    assert_cmp(src_start.x + size.w, <=, src->w, "");
+    assert_cmp(src_start.y + size.h, <=, src->h, "");
+    for(usize y_=0 ; y_<size.h ; ++y_) for(usize x_=0 ; x_<size.w ; ++x_) {
+        let dx = dst_start.x + x_;
+        let dy = dst_start.y + y_;
+        let sx = src_start.x + x_;
+        let sy = src_start.y + y_;
+        dst->pixels[dy * dst->w + dx] = src->pixels[sy * src->w + sx];
+        switch(blend_op.enumval) {
+        case BlendCopy: break;
+        case BlendAlpha: break;
+        case BlendMul: break;
+        default: break;
         }
+        switch(depth_test.enumval) {
+        case DepthAlways: break;
+        case DepthBelow: break;
+        case DepthBelowOrEqual: break;
+        default: break;
+        }
+    }
+}
+
+static inline u16 u16_swap(u16 i) {
+    return i<<8 | ((i>>8)&0xff);
+}
+
+// NOTE: Only 32 bits-per-pixel modes could be tested.
+void VbeRgbFb_copy_RgbaFb(
+    VbeRgbFb *restrict dst, Vec2u dst_start,
+    const RgbaFb *restrict src, Vec2u src_start,
+    Extent2u size
+) {
+
+    switch(dst->bits_per_pixel) {
+    case 15: /* 5:5:5 */
+        // fallthrough
+    case 16: /* 5:6:5 */
+        for(usize y_=0 ; y_<size.h ; ++y_) for(usize x_=0 ; x_<size.w ; ++x_) {
+            let dx = dst_start.x + x_;
+            let dy = dst_start.y + y_;
+            let sx = src_start.x + x_;
+            let sy = src_start.y + y_;
+            let color = src->pixels[sy*src->w + sx];
+            let dst8 = (u8*) dst->pixels;
+
+            let idx = dy*dst->pitch + dx*((dst->bits_per_pixel+1)/8);
+
+            u8 r = color.r * ((1 << dst->r.num_bits) - 1);
+            u8 g = color.g * ((1 << dst->g.num_bits) - 1);
+            u8 b = color.b * ((1 << dst->b.num_bits) - 1);
+            u16 color16 = 
+                  r << ((16 - dst->r.bits_offset) - dst->r.num_bits)
+                | g << ((16 - dst->g.bits_offset) - dst->g.num_bits)
+                | b << ((16 - dst->b.bits_offset) - dst->b.num_bits)
+                ;
+            color16 = u16_swap(color16);
+            *(u16*)&dst8[idx] = color16;
+        }
+        break;
+    case 24: /* 8:8:8 */
+        // fallthrough
+    case 32: /* 8:8:8:8 */
+        for(usize y_=0 ; y_<size.h ; ++y_) for(usize x_=0 ; x_<size.w ; ++x_) {
+            let dx = dst_start.x + x_;
+            let dy = dst_start.y + y_;
+            let sx = src_start.x + x_;
+            let sy = src_start.y + y_;
+            let color = src->pixels[sy*src->w + sx];
+            let dst8 = (u8*) dst->pixels;
+
+            let idx = dy*dst->pitch + dx*(dst->bits_per_pixel/8);
+
+            dst8[idx + dst->r.bits_offset/8] = color.r*0xff;
+            dst8[idx + dst->g.bits_offset/8] = color.g*0xff;
+            dst8[idx + dst->b.bits_offset/8] = color.b*0xff;
+        }
+        break;
+    default: 
+        // Draw garbage because we don't support this mode
+        for(usize y_=0 ; y_<size.h ; ++y_) for(usize x_=0 ; x_<size.w ; ++x_) {
+            let dx = dst_start.x + x_;
+            let dy = dst_start.y + y_;
+            let sx = src_start.x + x_;
+            let sy = src_start.y + y_;
+            let color = src->pixels[sy*src->w + sx];
+            let dst8 = (u8*) dst->pixels;
+            let idx = dy*dst->pitch + dx*((dst->bits_per_pixel+7)/8);
+            dst8[idx] = ((color.r + color.g + color.b)/3.0f)*0xff;
+        }
+        break;
     }
 }
 
@@ -61,10 +177,12 @@ void XbmMonoFont_rasterize(const XbmMonoFont *f, RgbaFb *dst, const char *str, u
 // - (b[1] & (1<<0)) is the mask for the 9th pixel.
 // - (b[1] & (1<<7)) is the mask for the 16th pixel;
 // - etc.
+static u8 noto_mono_bits[];
 const XbmMonoFont noto_mono = {
-    .w = 1792, .h = 16, .char_w = 7,
-    .bits = {
-    // Nicely generated by GIMP's XBM export
+    .w = 1792, .h = 16, .char_w = 7, .bits = noto_mono_bits
+};
+// Kindly generated by GIMP's XBM export
+static u8 noto_mono_bits[] = {
    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -364,5 +482,4 @@ const XbmMonoFont noto_mono = {
    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xdf, 0xff, 0xff,
    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
    0xff, 0xff, 0xff, 0xff, 0x9f, 0xef, 0xe7, 0xff
-}
 };

@@ -52,133 +52,47 @@ static void do_textmode_stuff(const MultibootInfo *mbi) {
     ega_set_cursor(cursor);
 }
 
-#define lerp(a,b,t) ({ let _t = (t); (a)*(1-_t) + (b)*_t; })
+
+static void render_frame(VbeRgbFb *fb, u32 frame_i) {
+
+    (void)frame_i;
+
+    const XbmMonoFont *f = &noto_mono;
+    const char* txtlines[] = { "Hello!", "Goodbye!" };
+
+    for(usize i=0 ; i<countof(txtlines) ; ++i) {
+
+        const char *txt = txtlines[i];
+        const usize txtlen = strlen(txt);
+        Rgba txtpixels[f->char_w * f->h * txtlen];
+        RgbaFb txtfb = {
+            .w = txtlen * f->char_w,
+            .h = f->h,
+            .pixels = txtpixels,
+            .depth = NULL
+        };
+        XbmMonoFont_rasterize(f, &txtfb, txt, txtlen, (Rgba){ .g = 1.0f, .a = 1.0f });
+        
+        VbeRgbFb_copy_RgbaFb(fb, (Vec2u){.y=i*f->h}, &txtfb, Vec2u_zero, txtfb.extent);
+    }
+}
 
 static void do_rgbmode_stuff(const MultibootInfo *mbi) {
-    let fb = &mbi->framebuffer;
-    let w = fb->width;
-    let h = fb->height;
-    let bpp = fb->bpp;
-    let fbmem = (u8*) (uptr) fb->addr;
-
-    logd(
-        "Entered RGB mode (", w, "x", h, "x", bpp, "); "
-        "addr = ", fb->addr, ", " "pitch = ", fb->pitch, "."
-    );
-    logd("r_bits_offset = ", fb->r_bits_offset, ";");
-    logd("r_num_bits    = ", fb->r_num_bits   , ";");
-    logd("g_bits_offset = ", fb->g_bits_offset, ";");
-    logd("g_num_bits    = ", fb->g_num_bits   , ";");
-    logd("b_bits_offset = ", fb->b_bits_offset, ";");
-    logd("b_num_bits    = ", fb->b_num_bits   , ";");
-
-    // TODO Possible bpps to handle: 8 15 16 24 32
-    // Today it's 32.
-    // TODO Use non-temporal store instructions
-    // _mm_stream_si128 (SSE2)
-    // _mm_stream_pd (SSE2)
-    // _mm_stream_ps (SSE)
-    // _mm_stream_pi (MMX)
-    // _mm_stream_si64 (only in 64-bit mode)
-    // _mm_stream_si32 (all modes)
-
-    assert_cmp(bpp, ==, 32, "We assume 32 bits-per-pixel!");
-    assert_cmp(w%4, ==, 0u, "For now we assume the width to be a multiple of 4 for SIMD operations!");
-    assert_cmp(((uptr)fbmem) % 16, ==, 0u, "We assume a SSE alignment!");
-
-    /*
-    __m128 cols[4] = {
-        { 0.2, 0.8, 0.9, 1 },
-        { 0.1, 0.6, 0.9, 1 },
-        { 0.2, 1, 0.1, 1 },
-        { 0.3, 0.8, 0.3, 1 },
-    };
-    */
-    __m128 cols[4] = {
-        { 1, 0, 0, 1 },
-        { 0, 1, 0, 1 },
-        { 0, 0, 1, 1 },
-        { 1, 1, 1, 1 },
+    let mbi_fb = &mbi->framebuffer;
+    VbeRgbFb fb = {
+        .pixels = (void*) (uptr) mbi_fb->addr,
+        .pitch = mbi_fb->pitch,
+        .w = mbi_fb->width,
+        .h = mbi_fb->height,
+        .bits_per_pixel = mbi_fb->bpp,
+        .r = { .num_bits = mbi_fb->r_num_bits, .bits_offset = mbi_fb->r_bits_offset },
+        .g = { .num_bits = mbi_fb->g_num_bits, .bits_offset = mbi_fb->g_bits_offset },
+        .b = { .num_bits = mbi_fb->b_num_bits, .bits_offset = mbi_fb->b_bits_offset }
     };
 
     for(usize frame_i=0 ; ; ++frame_i) {
-        // usize off = frame_i*4;
-        // let t_start = _rdtsc();
-        usize roundtrip = 3200;
-        float factor = (frame_i%(roundtrip/4))/(float)(roundtrip/4);
-        usize index = 4.f*(frame_i%roundtrip)/(float)roundtrip;
-        __m128 rgba_tl = lerp(cols[(index+0)%4], cols[(index+1)%4], factor);
-        __m128 rgba_tr = lerp(cols[(index+1)%4], cols[(index+2)%4], factor);
-        __m128 rgba_br = lerp(cols[(index+2)%4], cols[(index+3)%4], factor);
-        __m128 rgba_bl = lerp(cols[(index+3)%4], cols[(index+4)%4], factor);
-        for(usize y=0 ; y<h ; ++y) {
-            for(usize x=0 ; x<w ; x += 4) {
-                float yfactor = y/(float)h;
-                float xfactor0 = (x+0)/(float)w;
-                float xfactor1 = (x+1)/(float)w;
-                float xfactor2 = (x+2)/(float)w;
-                float xfactor3 = (x+3)/(float)w;
-                __m128 rgba_cur0_hi = lerp(rgba_tl, rgba_tr, xfactor0);
-                __m128 rgba_cur0_lo = lerp(rgba_bl, rgba_br, xfactor0);
-                __m128 rgba_cur0 = lerp(rgba_cur0_hi, rgba_cur0_lo, yfactor);
-                __m128 rgba_cur1_hi = lerp(rgba_tl, rgba_tr, xfactor1);
-                __m128 rgba_cur1_lo = lerp(rgba_bl, rgba_br, xfactor1);
-                __m128 rgba_cur1 = lerp(rgba_cur1_hi, rgba_cur1_lo, yfactor);
-                __m128 rgba_cur2_hi = lerp(rgba_tl, rgba_tr, xfactor2);
-                __m128 rgba_cur2_lo = lerp(rgba_bl, rgba_br, xfactor2);
-                __m128 rgba_cur2 = lerp(rgba_cur2_hi, rgba_cur2_lo, yfactor);
-                __m128 rgba_cur3_hi = lerp(rgba_tl, rgba_tr, xfactor3);
-                __m128 rgba_cur3_lo = lerp(rgba_bl, rgba_br, xfactor3);
-                __m128 rgba_cur3 = lerp(rgba_cur3_hi, rgba_cur3_lo, yfactor);
-                // BGRA
-                __m128i pack = _mm_setr_epi8(
-                    0xff*rgba_cur0[2], 0xff*rgba_cur0[1], 0xff*rgba_cur0[0], 0xff*rgba_cur0[3],
-                    0xff*rgba_cur1[2], 0xff*rgba_cur1[1], 0xff*rgba_cur1[0], 0xff*rgba_cur1[3],
-                    0xff*rgba_cur2[2], 0xff*rgba_cur2[1], 0xff*rgba_cur2[0], 0xff*rgba_cur2[3],
-                    0xff*rgba_cur3[2], 0xff*rgba_cur3[1], 0xff*rgba_cur3[0], 0xff*rgba_cur3[3]
-                );
-                _mm_stream_si128((__m128i*) &fbmem[y*fb->pitch + x*(bpp/8)], pack);
-                /*
-                fbmem[y*fb->pitch + x*(bpp/8) + fb->r_bits_offset/8] = 0xff*(((x+off)%w)/(float)w);
-                fbmem[y*fb->pitch + x*(bpp/8) + fb->g_bits_offset/8] = 0xff*(((y+off)%h)/(float)h);
-                fbmem[y*fb->pitch + x*(bpp/8) + fb->b_bits_offset/8] = 0xff//((x+y)/(float)(w+h));
-                */
-            }
-        }
-
-        _mm_sfence();
-        sleep_ms(100);
-
-        const XbmMonoFont *f = &noto_mono;
-        const char* txtlines[] = { "Hello!", "Goodbye!" };
-        for(usize i=0 ; i<countof(txtlines) ; ++i) {
-            const char *txt = txtlines[i];
-            const usize txtlen = strlen(txt);
-            Rgba txtpixels[f->char_w * f->h * txtlen];
-            RgbaFb txtfb = {
-                .w = txtlen * f->char_w,
-                .h = f->h,
-                .pixels = txtpixels,
-                .depth = NULL
-            };
-            XbmMonoFont_rasterize(f, &txtfb, txt, txtlen, (Rgba){ .a = 1.0f });
-
-            for(usize y=0 ; y < txtfb.h ; ++y) {
-                for(usize x=0 ; x < txtfb.w ; ++x) {
-                    let px = txtfb.pixels[y*txtfb.w + x];
-                    if(px.a <= 0.0f)
-                        continue;
-                    let dy = i*f->h + y;
-                    fbmem[dy*fb->pitch + x*(bpp/8) + fb->r_bits_offset/8] = px.r*0xff;
-                    fbmem[dy*fb->pitch + x*(bpp/8) + fb->g_bits_offset/8] = px.g*0xff;
-                    fbmem[dy*fb->pitch + x*(bpp/8) + fb->b_bits_offset/8] = px.b*0xff;
-                }
-            }
-        }
+        render_frame(&fb, frame_i);
         hang_preserving_interrupts();
-        // sleep_ms(16);
-        // let t_end = _rdtsc();
-        // logd("Frame ", frame_i, " filled within ", (t_end - t_start), " cycles.");
     }
 }
 
@@ -334,7 +248,6 @@ void main(const MultibootInfo *mbi) {
                     mem[i] = 0xde;
                 }
                 logd("Done");
-                sleep_ms(100);
             }
 
             mmap = (MultibootMmapEntry*) (((uptr)mmap) + mmap->size + sizeof mmap->size);
@@ -362,6 +275,21 @@ void main(const MultibootInfo *mbi) {
             break;
         case MB_FRAMEBUFFER_TYPE_RGB:
             logd("The framebuffer is in RGB format.");
+            {
+                let fb = &mbi->framebuffer;
+                logd(
+                    "Entered RGB mode (", 
+                    fb->width, "x", fb->height, "x", fb->bpp, 
+                    "); "
+                    "addr = ", fb->addr, ", " "pitch = ", fb->pitch, "."
+                );
+                logd("r_bits_offset = ", fb->r_bits_offset, ";");
+                logd("r_num_bits    = ", fb->r_num_bits   , ";");
+                logd("g_bits_offset = ", fb->g_bits_offset, ";");
+                logd("g_num_bits    = ", fb->g_num_bits   , ";");
+                logd("b_bits_offset = ", fb->b_bits_offset, ";");
+                logd("b_num_bits    = ", fb->b_num_bits   , ";");
+            }
             do_rgbmode_stuff(mbi);
             break;
         case MB_FRAMEBUFFER_TYPE_EGA_TEXT:
