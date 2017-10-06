@@ -77,17 +77,48 @@ void VbeRgbFb_copy_RgbaFb(
     Extent2u size
 );
 
-// NOTE: Everything about what follows sucks in its own way. It's only to get
-// the basics going.
+typedef struct {
+    Rgba32 *pixels;
+    Extent2u;
+} Rgba32Image;
 
 typedef struct {
-    Vec4 position;
+    Rgba32Image image;
+    enum {
+        FilteringLinear,
+        FilteringNearest
+    } min_filter, max_filter;
+    enum {
+        WrapClamp,
+        WrapClampToEdge,
+        WrapClampToBorder,
+        WrapRepeat,
+        WrapRepeatMirrored
+    } wrapping;
+} Sampler2D;
+
+typedef struct {
+    Vec3 position;
     Rgba color;
-} Vertex;
+    // TODO: Other attributes here
+} Light;
 
-typedef union {
-    struct { Vertex v0, v1, v2; };
-    Vertex v[3];
-} Triangle;
+// NOTE: For now there's no `topology` member. The topology is implied
+// by the `*rasterize*` function.
+typedef struct {
+    struct {
+        Vec4* position;
+        Rgba* color;
+        Vec2* texcoords;
+        Vec3* normal;
+    } vertices;
+    usize vertex_count;
+    u32* indices;
+    usize indices_count;
+    Mat4 mvp, vp, normal_matrix;
+    Sampler2D sampler;
+    Light *lights;
+    usize light_count;
+} RasterBatch;
 
-void RgbaFb_rasterize(RgbaFb dst, const Triangle *tri, usize count);
+void RgbaFb_rasterize(RgbaFb *dst, const RasterBatch *b);

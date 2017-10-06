@@ -1,15 +1,6 @@
 #include <gfx.h>
 #include <string.h>
 
-// WISH: Use non-temporal store instructions
-// _mm_stream_si128 (SSE2)
-// _mm_stream_pd (SSE2)
-// _mm_stream_ps (SSE)
-// _mm_stream_pi (MMX)
-// _mm_stream_si64 (only in 64-bit mode)
-// _mm_stream_si32 (all modes)
-
-
 // Returns:
 //  < 0: `c` lies in the half-space right of segment `ab`.
 // == 0: `c` lies in the infinite line along segment `ab`.
@@ -19,23 +10,47 @@ static inline float orient2d(Vec2 a, Vec2 b, Vec2 c) {
     return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
 }
 
-// TODO: Make this generic
-static inline float abs(float a) {
-    return a < 0 ? -a : a;
-}
-
 static inline float Triangle_area(Vec2 a, Vec2 b, Vec2 c) {
     return abs(orient2d(a, b, c))/2.0f;
 }
 
-void RgbaFb_rasterize(RgbaFb dst, const Triangle *tri, usize count) {
+// TODO: THIS IS NOT FINISHED!
+// Which coordinate type are we in ? Integers ? Floats ?
+void RgbaFb_rasterize_triangles(RgbaFb *dst, const RasterBatch *b) {
     (void) dst;
-    (void) tri;
-    (void) count;
-    // TODO
+    assert_cmp(b->indices_count % 3, ==, 0u, "Indices must describe triangles!");
+    for(usize tri_i=0 ; tri_i < b->indices_count/3 ; ++tri_i) {
+        let v0 = Vec2_from(b->vertices.position[b->indices[tri_i*3 + 0]]);
+        let v1 = Vec2_from(b->vertices.position[b->indices[tri_i*3 + 1]]);
+        let v2 = Vec2_from(b->vertices.position[b->indices[tri_i*3 + 2]]);
+        let minx = min3(v0.x, v1.x, v2.x);
+        let miny = min3(v0.y, v1.y, v2.y);
+        let maxx = max3(v0.x, v1.x, v2.x);
+        let maxy = max3(v0.y, v1.y, v2.y);
+        for(usize y=miny ; y<maxy ; ++y) for(usize x=minx ; x<maxx ; ++x) {
+            let p = Vec2_set(x, y);
+            let w0 = orient2d(v0, v1, p);
+            let w1 = orient2d(v1, v2, p);
+            let w2 = orient2d(v2, v0, p);
+            if(w0 < 0 || w1 < 0 || w2 < 0) {
+                continue;
+            }
+            let twice_area = abs(orient2d(v0, v1, v2)); // But do we need abs() ?
+            let wn0 = w0 / twice_area;
+            let wn1 = w1 / twice_area;
+            let wn2 = w2 / twice_area;
+
+            let vcolor0 = b->vertices.color[b->indices[tri_i*3 + 0]];
+            let vcolor1 = b->vertices.color[b->indices[tri_i*3 + 1]];
+            let vcolor2 = b->vertices.color[b->indices[tri_i*3 + 2]];
+
+            __m128 rgba = vcolor0.m*wn0 + vcolor1.m*wn1 + vcolor2.m*wn2;
+            dst->pixels[y*dst->w + x] = (Rgba) { .m = rgba };
+        }
+    }
 }
 
-// TODO Improve this with non-temporal SIMD instructions, and sfence.
+// WISH: Improve this with non-temporal SIMD instructions, and sfence.
 void RgbaFb_blend(
     RgbaFb *dst, Vec2u dst_start,
     const RgbaFb *src, Vec2u src_start,
