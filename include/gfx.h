@@ -2,6 +2,14 @@
 
 #include <vmath.h>
 
+// NOTE: Quite everything in this module is a blatant work-in-progress.
+//
+// References:
+// https://fgiesen.wordpress.com/2013/02/06/the-barycentric-conspirac/
+// https://fgiesen.wordpress.com/2013/02/08/triangle-rasterization-in-practice/
+// https://fgiesen.wordpress.com/2013/02/10/optimizing-the-basic-rasterizer/
+// https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/perspective-correct-interpolation-vertex-attributes
+
 typedef struct {
     void *pixels;
     u32 pitch;
@@ -105,20 +113,48 @@ typedef struct {
 
 // NOTE: For now there's no `topology` member. The topology is implied
 // by the `*rasterize*` function.
+
 typedef struct {
-    struct {
-        Vec4* position;
-        Rgba* color;
-        Vec2* texcoords;
-        Vec3* normal;
-    } vertices;
+    Vec4* vposition;
+    Rgba* vcolor;
+    Vec2* vtexcoords;
+    Vec4* vnormal;
     usize vertex_count;
+} Vbo, VShaderInput, VShaderOutput;
+
+typedef struct {
     u32* indices;
-    usize indices_count;
+    usize index_count;
+} Ebo;
+
+typedef struct {
     Mat4 mvp, vp, normal_matrix;
     Sampler2D sampler;
     Light *lights;
     usize light_count;
+} Uniforms;
+
+typedef struct {
+    Vbo vbo;
+    Ebo ebo;
+    Uniforms uniforms;
 } RasterBatch;
 
+typedef struct {
+    float *frag_depth;
+    Vec2u *frag_pos;
+    Vec2  *vtexcoords;
+    Vec3  *vnormal;
+    usize count;
+} FShaderInput;
+
+typedef struct {
+    Rgba *frag_color;
+    usize count;
+} FShaderOutput;
+
 void RgbaFb_rasterize(RgbaFb *dst, const RasterBatch *b);
+
+// Misc notes:
+// - Divide by w;
+// - Perspective-correct interpolation: C = Z * lerp(C0/Z0, C1/Z1, q);

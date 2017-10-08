@@ -97,8 +97,8 @@ typedef struct {
 } Mat4;
 
 
-void Vec4_stream(Vec4 *dst, Vec4 v) { _mm_stream_ps((float*) &dst->m, v.m); }
-void Vec4i_stream(Vec4i *dst, Vec4i v) { _mm_stream_si128(&dst->m128i, v.m128i); }
+static inline_always void Vec4_stream(Vec4 *dst, Vec4 v) { _mm_stream_ps((float*) &dst->m, v.m); }
+static inline_always void Vec4i_stream(Vec4i *dst, Vec4i v) { _mm_stream_si128(&dst->m128i, v.m128i); }
 
 #define store_nontemporal(dst, v) (_Generic((v), \
     __m128i: _mm_stream_si128, \

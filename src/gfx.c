@@ -1,6 +1,18 @@
 #include <gfx.h>
 #include <string.h>
 
+// Pipeline overview:
+// 
+// vpos, vtexcoords, vnormal
+
+typedef struct {
+    struct {
+        Vec4 *position;
+        Vec2 *texcoords;
+        Vec4 *normal;
+    } vertices;
+} Foo;
+
 // Returns:
 //  < 0: `c` lies in the half-space right of segment `ab`.
 // == 0: `c` lies in the infinite line along segment `ab`.
@@ -18,11 +30,11 @@ static inline float Triangle_area(Vec2 a, Vec2 b, Vec2 c) {
 // Which coordinate type are we in ? Integers ? Floats ?
 void RgbaFb_rasterize_triangles(RgbaFb *dst, const RasterBatch *b) {
     (void) dst;
-    assert_cmp(b->indices_count % 3, ==, 0u, "Indices must describe triangles!");
-    for(usize tri_i=0 ; tri_i < b->indices_count/3 ; ++tri_i) {
-        let v0 = Vec2_from(b->vertices.position[b->indices[tri_i*3 + 0]]);
-        let v1 = Vec2_from(b->vertices.position[b->indices[tri_i*3 + 1]]);
-        let v2 = Vec2_from(b->vertices.position[b->indices[tri_i*3 + 2]]);
+    assert_cmp(b->ebo.index_count % 3, ==, 0u, "Indices must describe triangles!");
+    for(usize tri_i=0 ; tri_i < b->ebo.index_count/3 ; ++tri_i) {
+        let v0 = Vec2_from(b->vbo.vposition[b->ebo.indices[tri_i*3 + 0]]);
+        let v1 = Vec2_from(b->vbo.vposition[b->ebo.indices[tri_i*3 + 1]]);
+        let v2 = Vec2_from(b->vbo.vposition[b->ebo.indices[tri_i*3 + 2]]);
         let minx = min3(v0.x, v1.x, v2.x);
         let miny = min3(v0.y, v1.y, v2.y);
         let maxx = max3(v0.x, v1.x, v2.x);
@@ -40,9 +52,9 @@ void RgbaFb_rasterize_triangles(RgbaFb *dst, const RasterBatch *b) {
             let wn1 = w1 / twice_area;
             let wn2 = w2 / twice_area;
 
-            let vcolor0 = b->vertices.color[b->indices[tri_i*3 + 0]];
-            let vcolor1 = b->vertices.color[b->indices[tri_i*3 + 1]];
-            let vcolor2 = b->vertices.color[b->indices[tri_i*3 + 2]];
+            let vcolor0 = b->vbo.vcolor[b->ebo.indices[tri_i*3 + 0]];
+            let vcolor1 = b->vbo.vcolor[b->ebo.indices[tri_i*3 + 1]];
+            let vcolor2 = b->vbo.vcolor[b->ebo.indices[tri_i*3 + 2]];
 
             __m128 rgba = vcolor0.m*wn0 + vcolor1.m*wn1 + vcolor2.m*wn2;
             dst->pixels[y*dst->w + x] = (Rgba) { .m = rgba };
