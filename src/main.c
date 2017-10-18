@@ -60,6 +60,20 @@ static void render_frame(VbeRgbFb *fb, u32 frame_i) {
     const XbmMonoFont *f = &noto_mono;
     const char* txtlines[] = { "Hello!", "Goodbye!" };
 
+    for(u32 y=0 ; y<fb->h ; ++y) for(u32 x=0 ; x<fb->w ; ++x) {
+        let px8 = (u8*) fb->pixels;
+        let idx = y*fb->pitch + x*(fb->bits_per_pixel/8);
+        let color = (Rgba) {
+            .r = y/(float)fb->h,
+            .g = 1.0f,
+            .b = x/(float)fb->w,
+            .a = 1.0f,
+        };
+        px8[idx + fb->r.bits_offset/8] = color.r*0xff;
+        px8[idx + fb->g.bits_offset/8] = color.g*0xff;
+        px8[idx + fb->b.bits_offset/8] = color.b*0xff;
+    }
+
     for(usize i=0 ; i<countof(txtlines) ; ++i) {
 
         const char *txt = txtlines[i];
